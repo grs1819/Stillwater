@@ -823,8 +823,28 @@ function preview(hit){
   ghost.scale.set(1,tool==='water'?.065:tool==='balcony'?.16:1,1);
 }
 const touchContacts=new Map();
+let holdTimer=null,heldHit=null;
+const touchMenu=$('#touch-menu');
+function cancelHold(){clearTimeout(holdTimer);holdTimer=null;}
+function closeTouchMenu(){touchMenu.hidden=true;heldHit=null;}
+function openTouchMenu(hit,x,y){
+ heldHit=hit;touchMenu.hidden=false;
+ $('#touch-remove').disabled=!hit||hit.ground&&!water[waterKey(hit.position[0],hit.position[2])];
+ $('#touch-undo').disabled=!history.length;
+ touchMenu.style.left=`${Math.max(8,Math.min(innerWidth-232,x-112))}px`;
+ touchMenu.style.top=`${Math.max(8,Math.min(innerHeight-112,y-120))}px`;
+ ghost.visible=false;
+}
+$('#touch-build').onclick=()=>{closeTouchMenu();setDock(true);};
+$('#touch-remove').onclick=()=>{const hit=heldHit;closeTouchMenu();if(hit){const previousTool=tool;tool='erase';try{edit(hit,true);}finally{tool=previousTool;}}};
+$('#touch-undo').onclick=()=>{closeTouchMenu();undo();};
+$('#touch-cancel').onclick=closeTouchMenu;
+document.addEventListener('pointerdown',e=>{if(e.target!==canvas&&!touchMenu.contains(e.target)){cancelHold();closeTouchMenu();}},true);
+addEventListener('resize',()=>{cancelHold();closeTouchMenu();});
+addEventListener('keydown',e=>{if(e.key==='Escape'){cancelHold();closeTouchMenu();}});
+
 function resetPointerInteraction(){
-  touchContacts.clear();
+  cancelHold();closeTouchMenu();touchContacts.clear();
   const id=pointerDown?.pointerId;
   pointerDown=null;ghost.visible=false;canvas.style.cursor='';
   if(id!==undefined&&canvas.hasPointerCapture(id))canvas.releasePointerCapture(id);
@@ -838,8 +858,14 @@ canvas.addEventListener('pointerdown',e=>{
 },{capture:true});
 canvas.addEventListener('pointerdown',e=>{
   if(e.pointerType==='touch'){
-    touchContacts.set(e.pointerId,{x:e.clientX,y:e.clientY,moved:touchContacts.size>0,time:performance.now()});
-    if(touchContacts.size>1)for(const contact of touchContacts.values())contact.moved=true;
+    const dismissed=!touchMenu.hidden;cancelHold();closeTouchMenu();
+    const contact={x:e.clientX,y:e.clientY,moved:touchContacts.size>0||dismissed,time:performance.now(),held:false};
+    touchContacts.set(e.pointerId,contact);
+    if(touchContacts.size>1)for(const c of touchContacts.values())c.moved=true;
+    else if(!dismissed)holdTimer=setTimeout(()=>{
+      if(touchContacts.size!==1||touchContacts.get(e.pointerId)!==contact||contact.moved)return;
+      contact.held=true;openTouchMenu(pick({clientX:contact.x,clientY:contact.y}),contact.x,contact.y);
+    },550);
     canvas.setPointerCapture(e.pointerId);ghost.visible=false;return;
   }
   if(![0,1,2].includes(e.button))return;
@@ -849,7 +875,7 @@ canvas.addEventListener('pointerdown',e=>{
 canvas.addEventListener('pointermove',e=>{
   if(e.pointerType==='touch'){
     const contact=touchContacts.get(e.pointerId);
-    if(contact&&Math.hypot(e.clientX-contact.x,e.clientY-contact.y)>8)contact.moved=true;
+    if(contact&&Math.hypot(e.clientX-contact.x,e.clientY-contact.y)>8){contact.moved=true;cancelHold();closeTouchMenu();}
     ghost.visible=false;return;
   }
   if(pointerDown&&Math.hypot(e.clientX-pointerDown.x,e.clientY-pointerDown.y)>5)pointerDown.moved=true;
@@ -860,15 +886,15 @@ canvas.addEventListener('pointermove',e=>{
 canvas.addEventListener('pointerup',e=>{
   if(e.pointerType==='touch'){
     const contact=touchContacts.get(e.pointerId);
-    touchContacts.delete(e.pointerId);
-    if(contact&&!contact.moved&&Math.hypot(e.clientX-contact.x,e.clientY-contact.y)<=8&&performance.now()-contact.time<500)edit(pick(e));
+    cancelHold();touchContacts.delete(e.pointerId);
+    if(contact&&!contact.held&&!contact.moved&&Math.hypot(e.clientX-contact.x,e.clientY-contact.y)<=8&&performance.now()-contact.time<500)edit(pick(e));
     ghost.visible=false;return;
   }
   if(pointerDown?.pointerId!==e.pointerId)return;
   if(!pointerDown.moved&&pointerDown.button!==1)edit(pick(e),pointerDown.button===2,pointerDown.alt);
   pointerDown=null;ghost.visible=false;canvas.style.cursor='';
 });
-canvas.addEventListener('pointercancel',e=>{touchContacts.delete(e.pointerId);for(const contact of touchContacts.values())contact.moved=true;pointerDown=null;ghost.visible=false;canvas.style.cursor='';});
+canvas.addEventListener('pointercancel',e=>{cancelHold();closeTouchMenu();touchContacts.delete(e.pointerId);for(const contact of touchContacts.values())contact.moved=true;pointerDown=null;ghost.visible=false;canvas.style.cursor='';});
 canvas.addEventListener('lostpointercapture',e=>{if(e.pointerType==='touch'){if(touchContacts.has(e.pointerId))resetPointerInteraction();return;}if(pointerDown?.pointerId===e.pointerId)resetPointerInteraction();});
 addEventListener('blur',resetPointerInteraction);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)resetPointerInteraction();});
