@@ -831,8 +831,8 @@ function openTouchMenu(hit,x,y){
  heldHit=hit;touchMenu.hidden=false;
  $('#touch-remove').disabled=!hit||hit.ground&&!water[waterKey(hit.position[0],hit.position[2])];
  $('#touch-undo').disabled=!history.length;
- touchMenu.style.left=`${Math.max(8,Math.min(innerWidth-232,x-112))}px`;
- touchMenu.style.top=`${Math.max(8,Math.min(innerHeight-112,y-120))}px`;
+ touchMenu.style.left=`${Math.max(8,Math.min(innerWidth-256,x-124))}px`;
+ touchMenu.style.top=`${Math.max(8,Math.min(innerHeight-240,y-244))}px`;
  ghost.visible=false;
 }
 $('#touch-build').onclick=()=>{closeTouchMenu();setDock(true);};
