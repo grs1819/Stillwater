@@ -181,3 +181,8 @@ button{touch-action:manipulation}
 .touch-menu button:active:not(:disabled){background:#d7e2ca;box-shadow:0 2px 7px #233f3326}
 @keyframes petal-bloom{from{opacity:0;transform:translate(var(--petal-x),var(--petal-y)) scale(.45)}to{opacity:var(--petal-opacity,1);transform:translate(0,0) scale(1)}}
 @media(prefers-reduced-motion:reduce){.touch-menu button{animation:none}}
+
+.touch-confirm{position:fixed;z-index:9;bottom:calc(58px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:min(360px,calc(100vw - 20px));display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px;align-items:center;padding:8px;background:var(--paper);border:1px solid #c3d1b4;border-radius:14px;box-shadow:0 4px 18px #233f3326}
+.touch-confirm span{font-size:12px;line-height:1.3;color:var(--pine)}
+.touch-confirm button{min-width:60px;min-height:44px;border:1px solid #b7cba6;border-radius:9px;background:#e1e8d3;color:var(--pine);padding:8px;font-size:14px}
+#touch-discard{background:transparent}
