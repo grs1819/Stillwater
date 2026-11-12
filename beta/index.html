@@ -104,7 +104,7 @@
               <p><strong>Outdoors:</strong> select Outdoors (7) and click dry ground for a lean-to. Click it again for a tent, then a glamping shelter. Adjacent camp tiles merge into one larger shelter. Choose Campfire, Seating, Picnic table, or Lantern to furnish your campsite yourself. Each piece occupies one dry ground tile. Role (8) assigns a purpose to existing buildings. Right-click removes; Undo restores.</p>
               <p><strong>Terrain:</strong> select Terrain (5), then Raise, Lower, or Level. Level samples a height on the first tap, then applies it. Keep structures on level clearings and leave water at its original height. Undo restores terrain too.</p>
               <p><strong>Build:</strong> click roofs to grow up, walls to grow out. Alt-click to repaint. Right-click to remove.</p>
-              <p><strong>Touch:</strong> drag one finger to orbit and tilt. Drag two fingers to pan; pinch to zoom. A quick tap builds; hold still briefly for quick actions. Select Remove to erase. Camera gestures never place blocks.</p>
+              <p><strong>Touch:</strong> drag one finger to orbit and tilt. Drag two fingers to pan; pinch to zoom. Tap a tile to preview, then Build or Apply to confirm. Tap another tile to change the preview; Cancel dismisses it. Removal also needs confirmation. Hold still briefly for quick actions. Camera movement clears the preview. Camera gestures never place blocks.</p>
               <p><strong>Explore:</strong> middle-drag to orbit and tilt, Shift + middle-drag to pan, scroll to zoom. Q / E rotate; R recenters.</p>
               <p><strong>Roofing:</strong> choose a roof color. Cottages have natural moss over a colored roof; log cabins gain weathered ribbed metal; timber lodges gain polished standing-seam panels. Two stories or three rooms create a log cabin; four stories or ten rooms create a timber lodge.</p>
               <p><strong>Lookouts:</strong> stack at least three floors with a narrow one- or two-room summit to create panoramic windows, a telescope, map table, and woodburning stove. Add height to move the lookout upward.</p>
@@ -125,6 +125,11 @@
       <span id="dock-caption" class="dock-caption">Build your town <kbd>B</kbd></span>
     </div>
   </footer>
+  <section id="touch-confirm" class="touch-confirm" aria-label="Confirm selected edit" hidden>
+    <span id="touch-confirm-label" role="status"></span>
+    <button id="touch-apply" type="button">Build</button>
+    <button id="touch-discard" type="button">Cancel</button>
+  </section>
   <section id="touch-menu" class="touch-menu" aria-label="Quick actions" hidden>
     <button id="touch-build" type="button" aria-label="Open build menu"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9 12 2 21 9M4 13v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/></svg><span>Build</span></button>
     <button id="touch-remove" type="button" aria-label="Remove here"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m5 5 14 14M19 5 5 19"/></svg><span>Remove</span></button>
