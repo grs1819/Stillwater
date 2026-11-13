@@ -1,8 +1,8 @@
 # Beta accounts and cloud saves
 
-The beta source now contains the account and sync implementation. **Accounts remain
-disabled** in `account-config.js` until real database authorization and password sign-up/sign-in checks pass. No live game files or deployed database schema were changed
-by this increment. GitHub Pages remains the static host.
+Beta accounts are enabled in `account-config.js` after real password registration,
+session, authorization and conflict checks. GitHub Pages remains the static host.
+The live game is not promoted by this increment.
 
 ## Current service state
 
@@ -23,19 +23,15 @@ by this increment. GitHub Pages remains the static host.
 - A real mobile browser run also passed password login, explicit guest copying,
   cloud writes, offline/reconnect, forced session expiry/refresh, revision-checked
   deletion, logout, and another account's isolated empty collection.
-- Real valid saves/deletes succeed. Invalid requests return HTTP 400 / `22023`.
-  Stale-revision requests using PostgreSQL `40001` time out through the current
-  API path (observed with Node and curl). No conflict response was received; the
-  precise retrying layer is not established. Accounts remain disabled pending
-  the conflict fix and completion of the real authorization checks.
-- Run `backend/conflict-http-status.sql` in the beta SQL editor. It updates only
-  the two RPC function definitions to use PostgREST `PT409` for application
-  conflicts, preserving rows and existing permissions. The main schema file now
-  uses the same code; the client accepts both old and new conflict codes.
-- Other real database checks passed: anonymous read/RPC denial, cross-user read
-  isolation, owner injection and direct inserts denied, concurrent three-slot limit,
-  and valid revision advancement. Stale save/delete and cross-user RPC mutation
-  rejection remain blocked until the conflict patch is applied.
+- User applied `backend/conflict-http-status.sql`. Real conflict requests now
+  return `PT409` promptly, including stale saves/deletes and unauthorized attempts
+  to mutate another account's village. The client accepts both old and new codes.
+- The full real two-user database check passed: anonymous access denied, cross-user
+  reads/writes/deletes rejected, owner injection/direct inserts rejected, concurrent
+  fourth slot rejected, valid revision advancement, stale saves/deletes unchanged.
+- Real browser conflict checks passed: an offline local edit and a remote edit
+  retained both versions across reload; copying local to a free slot preserved the
+  remote original and synced the copy. Test villages were removed afterward.
 - Cloud HTTP requests and the database check script now have 20-second timeouts so
   failures preserve local data and release the sync queue instead of hanging.
 - Two dedicated test auth users were created with addresses matching
@@ -73,10 +69,10 @@ Account deletion is **not implemented or exposed**: it requires a verified manag
 backend endpoint that deletes the authenticated auth user and cascades cloud rows.
 Do not present local sign-out as account deletion.
 
-## Finish configuration and verification
+## Configuration and repeatable verification
 
-1. The public key is configured; leave `enabled:false` until the checks below
-   pass. Use a separate project/configuration before live promotion.
+1. The public key is configured and accounts are enabled for beta. Use a separate
+   project/configuration before live promotion.
 2. Keep **Enable Email provider ON** and **Confirm email OFF** in Supabase
    Authentication → Sign In / Providers → Email. The user approved unconfirmed email/password accounts for beta.
    SMTP and email template customization are not needed for this flow. Password
@@ -93,8 +89,8 @@ Do not present local sign-out as account deletion.
    Exercise two devices, offline/reconnect, another-account login, slot switches
    during sync, conflicts, and sign-out with pending changes. Confirm beta storage
    keys and cloud `environment=beta`; no live storage or project access.
-5. Only after those checks, set `enabled:true` and follow `AGENTS.md` for beta
-   publication. Do not promote to live without explicit approval.
+5. Follow `AGENTS.md` for beta publication. Do not promote to live without
+   explicit approval.
 
 ## Local validation
 

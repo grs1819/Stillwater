@@ -1,7 +1,7 @@
 // Public frontend configuration only. Never add a service-role key here.
-// Enable only after real two-user authorization checks and password registration/sign-in pass.
+// Beta: real two-user authorization and password/session checks passed.
 export const accountConfig=Object.freeze({
- enabled:false,
+ enabled:true,
  url:'https://dpxkbhuvhansozshyuvo.supabase.co',
  publishableKey:'sb_publishable_nKzBlPxGVOOvOzdZxPbadA_XrLvjZqP',
  environment:'beta',
