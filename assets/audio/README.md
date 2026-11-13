@@ -65,3 +65,11 @@ in mocked HTTP responses only; no test recording is deployed. Browser checks cov
 user activation, signal output, saved controls, suspension, confirmation behavior,
 small screens and playlist gaps/rotation. Physical iPhone/Safari listening remains
 part of beta acceptance; synthesized ambience is an initial artistic treatment.
+
+### Browser activation recovery
+Music playback is requested synchronously during pointer/click/key activation,
+before awaiting the AudioContext. If a browser denies playback, the player reports
+“Tap the speaker button to start music” and retries on the next interaction rather
+than repeatedly retrying a blocked timer. Zero master/music volume is also reported.
+`scripts/check-audio-activation.mjs` simulates a denied media play with an already
+running audio context and checks recovery on a later real click.

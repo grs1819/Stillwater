@@ -32,11 +32,11 @@ export function editSound(before,after){
 export const SOUNDSCAPES={woodlands:{pause:[6,13],events:['bird','bird','cricket','cicada','wind','water','fire']}};
 export function createAudio({storageKey='stillwater-audio-v1',tracks=MUSIC_TRACKS,getListener=()=>({x:0,y:20,z:20}),onStatus=()=>{}}={}){
   let prefs={...AUDIO_DEFAULTS};try{prefs=audioPreferences(JSON.parse(localStorage.getItem(storageKey)));}catch{}
-  let ctx,master,buses,noise,timer,media,musicGain,unlocked=false,active=!document.hidden,starting=false;
+  let ctx,master,buses,noise,timer,media,musicGain,unlocked=false,active=!document.hidden,starting=false,musicBlocked=false;
   let sources=[],voices=new Set(),nextAmbient=0,nextMusic=0,trackIndex=-1,loading=false,trackFinished=true,failed=new Set(),lastEffect=-1;
   let environment='woodlands';
   const random=(a,b)=>a+Math.random()*(b-a);
-  const status=()=>onStatus(!ctx?'Sound starts when you interact.':!active?'Sound paused.':prefs.muted?'Sound muted.':!tracks.length?'Woodland sounds on. Music coming soon.':failed.size===tracks.length?'Music unavailable. Woodland sounds on.':media&&!media.paused&&tracks[trackIndex]?`Playing: ${tracks[trackIndex].title}`:'Woodland sounds on.');
+  const status=()=>onStatus(!ctx?'Sound starts when you interact.':!active?'Sound paused.':prefs.muted?'Sound muted.':!prefs.master?'Master volume is zero.':!prefs.music?'Music volume is zero.':!tracks.length?'Woodland sounds on. Music coming soon.':musicBlocked?'Tap the speaker button to start music.':failed.size===tracks.length?'Music unavailable. Try refreshing beta.':media&&!media.paused&&tracks[trackIndex]?`Playing: ${tracks[trackIndex].title}`:'Woodland sounds on.');
   function ramp(param,value,seconds=.12){const now=ctx.currentTime;param.cancelScheduledValues(now);param.setTargetAtTime(value,now,Math.max(.01,seconds/3));}
   function apply(){if(!ctx)return; ramp(master.gain,active&&!prefs.muted?prefs.master:0);for(const key of ['music','ambience','effects'])ramp(buses[key].gain,prefs[key]);if(!prefs.music||!prefs.master||prefs.muted)media?.pause();status();}
   function setPreferences(patch){prefs=audioPreferences({...prefs,...patch});try{localStorage.setItem(storageKey,JSON.stringify(prefs));}catch{}apply();status();}
@@ -59,8 +59,16 @@ export function createAudio({storageKey='stillwater-audio-v1',tracks=MUSIC_TRACK
     timer=setInterval(tick,500);apply();return true;
   }
   async function unlock(){
-    if(starting||document.hidden||unlocked&&active&&ctx.state==='running')return;active=true;starting=true;
-    try{if(!ctx&&!init())return;await ctx.resume();unlocked=true;apply();}catch{onStatus('Tap Sound to enable audio.');}finally{starting=false;}
+    if(document.hidden||starting)return;
+    active=true;
+    try{
+      if(!ctx&&!init())return;
+      // Call play synchronously inside the gesture, before awaiting AudioContext.
+      // Touch browsers may grant media activation only on pointerup/click.
+      if(media&&media.paused&&!prefs.muted&&prefs.master&&prefs.music&&(trackIndex<0||musicBlocked||ctx.currentTime>=nextMusic))playMusic();
+      if(unlocked&&ctx.state==='running'){apply();return;}
+      starting=true;await ctx.resume();unlocked=true;apply();
+    }catch{onStatus('Tap the speaker button to enable audio.');}finally{starting=false;}
   }
   // Soft attack/release, restrained bandwidth, bounded voices; no endless loops.
   function voice({bus='effects',at=0,duration=.25,volume=.1,frequency=500,endFrequency,tonal=false,attack=.012,position=null}){
@@ -117,10 +125,17 @@ export function createAudio({storageKey='stillwater-audio-v1',tracks=MUSIC_TRACK
   }
   function playMusic(){
     if(loading||!media||failed.size===tracks.length)return;
-    if(!trackFinished){loading=true;media.play().catch(()=>{nextMusic=ctx.currentTime+10;}).finally(()=>{loading=false;});return;}
-    do{trackIndex=(trackIndex+1)%tracks.length;}while(failed.has(trackIndex));
-    media.src=new URL(tracks[trackIndex].src,import.meta.url).href;musicGain.gain.value=0;loading=true;trackFinished=false;
-    media.play().then(()=>{loading=false;}).catch(e=>{loading=false;if(e.name!=='NotAllowedError'){failed.add(trackIndex);trackFinished=true;}nextMusic=ctx.currentTime+10;status();});
+    if(trackFinished){
+      do{trackIndex=(trackIndex+1)%tracks.length;}while(failed.has(trackIndex));
+      media.src=new URL(tracks[trackIndex].src,import.meta.url).href;
+      musicGain.gain.value=0;trackFinished=false;
+    }
+    loading=true;
+    media.play().then(()=>{musicBlocked=false;status();}).catch(e=>{
+      if(e.name==='NotAllowedError')musicBlocked=true;
+      else if(e.name!=='AbortError'){failed.add(trackIndex);trackFinished=true;}
+      nextMusic=ctx.currentTime+10;status();
+    }).finally(()=>{loading=false;});
   }
   function tick(){
     if(!unlocked||!active||ctx.state!=='running')return;
@@ -129,7 +144,7 @@ export function createAudio({storageKey='stillwater-audio-v1',tracks=MUSIC_TRACK
     const now=ctx.currentTime;
     if(prefs.ambience&&now>=nextAmbient){const config=SOUNDSCAPES[environment],event=config.events[Math.floor(Math.random()*config.events.length)];const duration=ambience(event);nextAmbient=now+duration+random(...config.pause);}
     if(prefs.music&&media){
-      if(media.paused&&now>=nextMusic)playMusic();
+      if(media.paused&&!musicBlocked&&now>=nextMusic)playMusic();
       if(!media.paused){const remaining=Number.isFinite(media.duration)?media.duration-media.currentTime:10;const fade=Math.min(1,media.currentTime/3,remaining/4);ramp(musicGain.gain,Math.max(0,fade)*.65,.5);}
     }
   }
@@ -139,10 +154,10 @@ export function createAudio({storageKey='stillwater-audio-v1',tracks=MUSIC_TRACK
     else if(unlocked)unlock();
   }
   const onVisibility=()=>setActive(!document.hidden),onBlur=()=>setActive(false),onFocus=()=>{if(!document.hidden)setActive(true);};
-  document.addEventListener('pointerdown',unlock,{capture:true});document.addEventListener('keydown',unlock,{capture:true});
+  document.addEventListener('pointerdown',unlock,{capture:true});document.addEventListener('pointerup',unlock,{capture:true});document.addEventListener('click',unlock,{capture:true});document.addEventListener('keydown',unlock,{capture:true});
   document.addEventListener('visibilitychange',onVisibility);window.addEventListener('blur',onBlur);window.addEventListener('focus',onFocus);window.addEventListener('pagehide',onBlur);window.addEventListener('pageshow',onFocus);
   return {effect,unlock,setPreferences,get preferences(){return {...prefs};},
     setWorld(value){sources=value;},setEnvironment(value){if(SOUNDSCAPES[value])environment=value;},
-    dispose(){clearInterval(timer);media?.pause();for(const item of voices)item.source.stop();ctx?.close();document.removeEventListener('pointerdown',unlock,true);document.removeEventListener('keydown',unlock,true);document.removeEventListener('visibilitychange',onVisibility);window.removeEventListener('blur',onBlur);window.removeEventListener('focus',onFocus);window.removeEventListener('pagehide',onBlur);window.removeEventListener('pageshow',onFocus);},
+    dispose(){clearInterval(timer);media?.pause();for(const item of voices)item.source.stop();ctx?.close();document.removeEventListener('pointerdown',unlock,true);document.removeEventListener('pointerup',unlock,true);document.removeEventListener('click',unlock,true);document.removeEventListener('keydown',unlock,true);document.removeEventListener('visibilitychange',onVisibility);window.removeEventListener('blur',onBlur);window.removeEventListener('focus',onFocus);window.removeEventListener('pagehide',onBlur);window.removeEventListener('pageshow',onFocus);},
   };
 }
