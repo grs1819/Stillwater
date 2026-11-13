@@ -24,7 +24,7 @@ export function createCloudSync({store,remote,onChange=()=>{},delay=800}){
     store.acknowledge(slot.id,slot.revision,row.revision);
    }catch(error){
     if(stopped)return;
-    if(error.code!=='40001')throw error;
+    if(!['40001','PT409'].includes(error.code))throw error;
     const latest=await remote.list();if(stopped)return;
     store.setConflict(slot.id,latest.find(row=>row.id===slot.id)||null);
    }

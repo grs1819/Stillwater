@@ -17,11 +17,31 @@ by this increment. GitHub Pages remains the static host.
 - Required auth settings: **Enable Email provider ON**, **Confirm email OFF**.
   These are separate toggles. Turning off the Email provider disables password
   registration too. The public `/auth/v1/settings` endpoint reports their state.
-- Latest public settings check: `mailer_autoconfirm:true` (confirmation off),
-  `external.email:false` (Email provider off). Real registration returned HTTP 400,
-  “Email signups are disabled.” Re-enable Email while leaving confirmation off.
-- Authenticated remote checks are blocked by that provider setting. Successful SQL
-  execution alone does not establish row-level security or password registration.
+- Latest public settings check: `mailer_autoconfirm:true`, `external.email:true`.
+  Real registration without confirmation, password login and refresh passed for
+  two dedicated test accounts. No emails were sent by these tests.
+- A real mobile browser run also passed password login, explicit guest copying,
+  cloud writes, offline/reconnect, forced session expiry/refresh, revision-checked
+  deletion, logout, and another account's isolated empty collection.
+- Real valid saves/deletes succeed. Invalid requests return HTTP 400 / `22023`.
+  Stale-revision requests using PostgreSQL `40001` time out through the current
+  API path (observed with Node and curl). No conflict response was received; the
+  precise retrying layer is not established. Accounts remain disabled pending
+  the conflict fix and completion of the real authorization checks.
+- Run `backend/conflict-http-status.sql` in the beta SQL editor. It updates only
+  the two RPC function definitions to use PostgREST `PT409` for application
+  conflicts, preserving rows and existing permissions. The main schema file now
+  uses the same code; the client accepts both old and new conflict codes.
+- Other real database checks passed: anonymous read/RPC denial, cross-user read
+  isolation, owner injection and direct inserts denied, concurrent three-slot limit,
+  and valid revision advancement. Stale save/delete and cross-user RPC mutation
+  rejection remain blocked until the conflict patch is applied.
+- Cloud HTTP requests and the database check script now have 20-second timeouts so
+  failures preserve local data and release the sync queue instead of hanging.
+- Two dedicated test auth users were created with addresses matching
+  `stillwater-beta-[ab]-*@example.com`. Their temporary village fixtures were
+  removed. No real player's rows were changed. These test auth users can be
+  removed later from Authentication → Users; no admin credential is available here.
 
 ## Implemented behavior
 
@@ -57,13 +77,13 @@ Do not present local sign-out as account deletion.
 
 1. The public key is configured; leave `enabled:false` until the checks below
    pass. Use a separate project/configuration before live promotion.
-2. Turn off **Confirm email** in Supabase Authentication → Sign In / Providers →
-   Email and save. The user approved unconfirmed email/password accounts for beta.
+2. Keep **Enable Email provider ON** and **Confirm email OFF** in Supabase
+   Authentication → Sign In / Providers → Email. The user approved unconfirmed email/password accounts for beta.
    SMTP and email template customization are not needed for this flow. Password
    reset emails remain restricted without custom SMTP; no reset control is exposed.
    Never ask users to send passwords in chat. New passwords require at least 8
    characters in the beta UI and remain subject to the server's password policy.
-3. Use two dedicated **empty beta test accounts** and their short-lived access
+3. Apply `backend/conflict-http-status.sql`, then use two dedicated **empty beta test accounts** and their short-lived access
    tokens to run `node scripts/check-supabase.mjs`. Supply `STILLWATER_PUBLIC_KEY`,
    `STILLWATER_TEST_TOKEN_A`, and `STILLWATER_TEST_TOKEN_B` through the environment,
    never chat or committed files. The script verifies anonymous denial, cross-user

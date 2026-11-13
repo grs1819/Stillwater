@@ -49,7 +49,7 @@ test('stopping a user queue fences late reads and write acknowledgements',async(
 });
 test('stale RPC responses fetch and persist a conflict without overwriting either copy',async()=>{
  const f=fixture(),slot=f.store.create('One',data(1));await f.sync.flush();f.store.save(data(2));
- f.remote.save=async()=>{f.rows.get(slot.id).data=data(8);f.rows.get(slot.id).revision++;throw Object.assign(Error('save_conflict'),{code:'40001'});};
+ f.remote.save=async()=>{f.rows.get(slot.id).data=data(8);f.rows.get(slot.id).revision++;throw Object.assign(Error('save_conflict'),{code:'PT409'});};
  await f.sync.flush();assert.equal(f.store.active.data.peak,2);assert.equal(f.store.active.remoteConflict.data.peak,8);
 });
 test('failed deletion retains the village; deletion locks out focus refresh; edits during deletion survive',async()=>{

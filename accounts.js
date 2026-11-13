@@ -12,6 +12,7 @@ export function createAccounts({namespace,onSession,onError}){
  return {
   client,environment:accountConfig.environment,
   clientFor(owner){return createClient(accountConfig.url,accountConfig.publishableKey,{
+   global:{fetch:(url,options)=>fetch(url,{...options,signal:options?.signal||AbortSignal.timeout(20_000)})},
    accessToken:async()=>{
     const {data:{session},error}=await client.auth.getSession();
     if(error)throw error;

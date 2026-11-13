@@ -31,11 +31,11 @@ begin
   perform pg_advisory_xact_lock(hashtextextended(actor::text || ':' || p_environment, 0));
   select * into found_row from public.stillwater_villages where owner_id=actor and environment=p_environment and id=p_id;
   if found then
-    if found_row.revision <> p_expected_revision then raise exception 'save_conflict' using errcode='40001'; end if;
+    if found_row.revision <> p_expected_revision then raise exception 'save_conflict' using errcode='PT409'; end if;
     update public.stillwater_villages set name=btrim(p_name),data=p_data,revision=revision+1,updated_at=now()
       where owner_id=actor and environment=p_environment and id=p_id returning * into found_row;
   else
-    if p_expected_revision <> 0 then raise exception 'save_conflict' using errcode='40001'; end if;
+    if p_expected_revision <> 0 then raise exception 'save_conflict' using errcode='PT409'; end if;
     if (select count(*) from public.stillwater_villages where owner_id=actor and environment=p_environment) >= 3 then
       raise exception 'village_limit_reached' using errcode='23514';
     end if;
@@ -56,7 +56,7 @@ begin
   perform pg_advisory_xact_lock(hashtextextended(actor::text || ':' || p_environment, 0));
   delete from public.stillwater_villages where owner_id=actor and environment=p_environment and id=p_id and revision=p_expected_revision;
   get diagnostics affected = row_count;
-  if affected <> 1 then raise exception 'save_conflict' using errcode='40001'; end if;
+  if affected <> 1 then raise exception 'save_conflict' using errcode='PT409'; end if;
 end;
 $$;
 revoke all on function public.stillwater_save_village(text,uuid,text,jsonb,bigint) from public,anon;

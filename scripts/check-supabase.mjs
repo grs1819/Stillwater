@@ -9,7 +9,7 @@ if(!key||tokens.some(t=>!t))throw Error('Set STILLWATER_PUBLIC_KEY and STILLWATE
 let keyRole;try{keyRole=JSON.parse(Buffer.from(key.split('.')[1],'base64url')).role;}catch{}
 if(keyRole==='service_role'||key.startsWith('sb_secret_'))throw Error('Use a public client key only.');
 async function request(path,token,body,method=body===undefined?'GET':'POST'){
- const res=await fetch(url+path,{method,headers:{apikey:key,...(token?{Authorization:`Bearer ${token}`} :{}),'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});
+ const res=await fetch(url+path,{method,signal:AbortSignal.timeout(20000),headers:{apikey:key,...(token?{Authorization:`Bearer ${token}`} :{}),'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});
  const raw=await res.text();let value;try{value=JSON.parse(raw);}catch{value=raw;}
  return {ok:res.ok,status:res.status,value};
 }
@@ -35,8 +35,8 @@ try{
  const created=await Promise.all(ids.map(id=>save(tokens[0],id)));assert.equal(created.filter(r=>r.ok).length,3,'Concurrent creates must enforce three slots');
  assert.ok(created.some(r=>r.value.code==='23514'));
  const id=ids[created.findIndex(r=>r.ok)];assert.ok((await save(tokens[0],id,1)).ok);
- const stale=await save(tokens[0],id,1);assert.equal(stale.ok,false);assert.equal(stale.value.code,'40001');
- const staleDelete=await remove(tokens[0],id,1);assert.equal(staleDelete.ok,false);assert.equal(staleDelete.value.code,'40001');
+ const stale=await save(tokens[0],id,1);assert.equal(stale.ok,false);assert.equal(stale.value.code,'PT409');
+ const staleDelete=await remove(tokens[0],id,1);assert.equal(staleDelete.ok,false);assert.equal(staleDelete.value.code,'PT409');
  const aRows=await request(table,tokens[0]);assert.equal(aRows.value.find(r=>r.id===id).revision,2);
  const bRows=await request(table,tokens[1]);assert.equal(bRows.value.length,1);assert.equal(bRows.value[0].revision,1);
  console.log('PASS real beta database: anonymous denial, two-user isolation, ownership rejection, concurrent slot limit, stale saves/deletes. Password registration and browser session recovery need separate checks.');
