@@ -21,13 +21,18 @@
   <button id="audio-toggle" class="audio-toggle" aria-label="Sound settings" title="Sound settings" aria-expanded="false" aria-controls="audio-panel"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4 5 9H2v6h3l6 5ZM15 8c3 2 3 6 0 8M18 5c5 4 5 10 0 14"/></svg></button>
   <section id="audio-panel" class="audio-panel" aria-label="Sound settings" hidden>
     <div class="audio-heading"><h2>Sounds of Stillwater</h2><button id="audio-close" aria-label="Close sound settings">×</button></div>
+    <div class="music-controls" role="group" aria-label="Music playback">
+      <button id="music-previous" type="button" aria-label="Previous track" title="Previous track" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5v14M19 5 8 12l11 7Z"/></svg></button>
+      <button id="music-play" type="button" aria-label="Pause music" title="Pause music"><svg class="pause-symbol" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg><svg class="play-symbol" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="m8 4 12 8-12 8Z"/></svg></button>
+      <button id="music-next" type="button" aria-label="Next track" title="Next track"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 5v14M5 5l11 7-11 7Z"/></svg></button>
+    </div>
     <p id="audio-status" role="status">Click or tap anywhere for sound.</p>
     <label for="volume-master">Master<output id="volume-master-value" for="volume-master"></output></label><input id="volume-master" data-volume="master" type="range" min="0" max="100" step="1">
     <label for="volume-music">Music<output id="volume-music-value" for="volume-music"></output></label><input id="volume-music" data-volume="music" type="range" min="0" max="100" step="1">
     <label for="volume-ambience">Ambience<output id="volume-ambience-value" for="volume-ambience"></output></label><input id="volume-ambience" data-volume="ambience" type="range" min="0" max="100" step="1">
     <label for="volume-effects">Sound effects<output id="volume-effects-value" for="volume-effects"></output></label><input id="volume-effects" data-volume="effects" type="range" min="0" max="100" step="1">
     <button id="audio-mute" aria-pressed="false">Mute</button>
-    <p class="music-credit">Music created with Stable Audio for Stillwater.</p>
+    <p class="music-credit">Original soundtrack supplied for Stillwater.</p>
   </section>
   <div id="toast" role="status"></div>
 
@@ -148,6 +153,6 @@
     <button id="touch-cancel" type="button" aria-label="Cancel"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg><span>Cancel</span></button>
   </section>
   <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
-  <script type="module" src="./app.js?v=music-repeat-3"></script>
+  <script type="module" src="./app.js?v=crossfade-1"></script>
 </body>
 </html>
