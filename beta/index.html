@@ -38,7 +38,20 @@
   <dialog id="village-dialog" aria-labelledby="village-title">
     <div class="audio-heading"><h2 id="village-title">Your villages</h2><button id="village-close" type="button" aria-label="Close villages">×</button></div>
     <p id="village-message" role="status" aria-live="polite"></p>
-<p id="account-status">Saved on this device. Cloud saves are not available yet.</p>
+<p id="account-status" role="status" aria-live="polite">Saved on this device.</p>
+    <div id="account-controls">
+      <div id="account-guest" hidden>
+        <p>Sign in to keep up to three villages across devices. Your guest villages stay on this device until you choose to copy one.</p>
+        <form id="account-form">
+        <label for="account-email">Email address</label><input id="account-email" type="email" autocomplete="email" required maxlength="254">
+          <label for="account-password">Password</label><input id="account-password" type="password" autocomplete="current-password" required maxlength="128">
+          <button id="account-signin" type="submit">Sign in</button><button id="account-signup" type="button">Create account</button>
+          <p>Use at least 8 characters for a new password. Email confirmation is not required during beta.</p>
+        </form>
+      </div>
+      <div id="account-signed-in" hidden><p id="account-identity"></p><button id="account-sync" type="button">Sync now</button><button id="account-signout" type="button">Sign out</button><button id="account-copy-guest" type="button">Copy guest village into account</button><p>Sign out on a shared device. Account copies remain cached in this browser for offline use.</p></div>
+    </div>
+    <div id="cloud-conflict" hidden><p id="cloud-conflict-text"></p><button id="cloud-use-local" type="button">Keep this device’s version</button><button id="cloud-use-remote" type="button">Use cloud version / deletion</button><button id="cloud-copy-local" type="button">Copy local to a free slot</button></div>
     <p id="village-count"></p><div id="village-list" aria-label="Village slots"></div>
     <button id="village-create" type="button">New village</button>
     <label for="village-name">Village name</label><div class="village-name-row"><input id="village-name" maxlength="40"><button id="village-rename" type="button">Rename</button></div>
@@ -161,6 +174,6 @@
     <button id="touch-cancel" type="button" aria-label="Cancel"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg><span>Cancel</span></button>
   </section>
   <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
-  <script type="module" src="./app.js?v=village-slots-1"></script>
+  <script type="module" src="./app.js?v=password-accounts-1"></script>
 </body>
 </html>
