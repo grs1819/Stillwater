@@ -103,7 +103,7 @@ let waterAnalysis;
 let blocks=state.blocks,peak=state.peak,history=[],tool='house',pointerDown=null,hoverHit=null;
 const buildings=new THREE.Group();scene.add(buildings);
 const villagers=createVillagers(scene,material);
-let targets=[];
+let targets=[],pickTargets=[];
 const milestones=[{n:3,name:'The first neighbors',text:'Villagers have found their way to Stillwater.'},{n:6,name:'A lighter touch',text:'Silver birch timber unlocked.'},{n:9,name:'Earth & ember',text:'Rust red roof color unlocked.'},{n:12,name:'A town of your own',text:'Red cedar timber and slate blue roof color unlocked.'}];
 function notify(message){$('#toast').textContent=message;$('#toast').classList.add('show');clearTimeout(notify.timer);notify.timer=setTimeout(()=>$('#toast').classList.remove('show'),4200);}
 function save(){try{localStorage.setItem('mosswood-v2',JSON.stringify({blocks,water,terrain,peak}));}catch{notify('Autosave unavailable. Keep this tab open to preserve your town.');}}
@@ -756,6 +756,7 @@ function rebuild(){
     const elevation=terrainHeight(terrain,x,z);
     for(const child of buildings.children.slice(childStart)){if(b.type==='path'&&!levelSite(terrain,x,z))drapePath(child);else child.position.y+=elevation;}
   }
+  pickTargets=[...targets,...clearing.children,ground];
   buildings.updateMatrixWorld(true);clearing.updateMatrixWorld(true);
   sound.setWorld([...Object.entries(water).map(([k,kind])=>{const [x,z]=k.split(',').map(Number);return {x,y:0,z,kind};}),...Object.entries(blocks).filter(([,b])=>b.type==='campProp'&&b.kind==='fire').map(([k])=>{const [x,y,z]=k.split(',').map(Number);return {x,y:y+terrainHeight(terrain,x,z),z,kind:'fire'};})]);
   villagers.rebuild(blocks,water,peak>=3,terrain);
@@ -813,8 +814,8 @@ function edit(hit,remove=false,paint=false){
   if(['house','balcony','camp'].includes(tool)&&!levelSite(terrain,p[0],p[2])){notify('Level a clearing around this tile before placing a structure.');return;}
   const next=structuredClone(blocks);next[key(...p)]={type:tool,wood:$('#wood').value,roof:$('#roof').value};if(tool==='balcony')next[key(...p)].cover=$('#deck-cover').value;if(tool==='path')next[key(...p)].surface=$('#path-surface').value;if(tool==='tree')next[key(...p)].species=$('#tree-species').value;if(tool==='camp'){if($('#camp-piece').value==='shelter')next[key(...p)].stage=1;else next[key(...p)]={type:'campProp',kind:$('#camp-piece').value};}if(tool==='house'&&!hit.ground&&blocks[key(...hit.position)]?.role)next[key(...p)].role=blocks[key(...hit.position)].role;commit(next);
 }
-const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2();
-function pick(e){const rect=canvas.getBoundingClientRect();pointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);camera.updateMatrixWorld(true);raycaster.setFromCamera(pointer,camera);const hits=raycaster.intersectObjects([...targets,...clearing.children,ground],false);for(const hit of hits){if(hit.object===ground||hit.object.userData.terrain){const x=Math.round(hit.point.x),z=Math.round(hit.point.z);return Math.abs(x)<=LIMIT&&Math.abs(z)<=LIMIT?{position:[x,0,z],normal:[0,1,0],ground:true}:null;}return {position:hit.object.userData.position,normal:hit.object.userData.normal||hit.face.normal.toArray().map(Math.round),ground:false};}return null;}
+const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2(),pickHits=[];
+function pick(e){const rect=canvas.getBoundingClientRect();pointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);camera.updateMatrixWorld(true);raycaster.setFromCamera(pointer,camera);pickHits.length=0;const hits=raycaster.intersectObjects(pickTargets,false,pickHits);for(const hit of hits){if(hit.object===ground||hit.object.userData.terrain){const x=Math.round(hit.point.x),z=Math.round(hit.point.z);return Math.abs(x)<=LIMIT&&Math.abs(z)<=LIMIT?{position:[x,0,z],normal:[0,1,0],ground:true}:null;}return {position:hit.object.userData.position,normal:hit.object.userData.normal||hit.face.normal.toArray().map(Math.round),ground:false};}return null;}
 function preview(hit){
   const p=destination(hit);
   if(p&&terrainMode()){const mode=terrainMode();ghost.visible=mode==='level'&&levelTarget===null||!!editTerrain(terrain,blocks,water,p[0],p[2],mode,levelTarget);ghost.position.set(p[0],terrainHeight(terrain,p[0],p[2])+.06,p[2]);ghost.scale.set(1,.08,1);ghost.material.color.set(mode==='lower'?'#d8b790':'#fff5bf');return;}
