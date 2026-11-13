@@ -1,12 +1,18 @@
 # Stillwater audio — first beta
 
 ## Included sounds and rights
-All shipped sounds are original procedural synthesis in `audio.js`, authored for
-Stillwater. No third-party recordings, samples, compositions, or audio libraries
-are included. The synthesis implementation and resulting sounds may be used,
-modified and distributed with Stillwater, including commercial releases; no
-third-party attribution or royalty obligation applies to these original sounds.
-They are stylized synthesized sounds, **not woodland field recordings**.
+The effects and environmental ambience are original procedural synthesis in
+`audio.js`, authored for Stillwater, with no third-party samples. They may be used,
+modified and distributed with Stillwater, including commercial releases. They are
+stylized synthesized sounds, **not woodland field recordings**.
+
+The six music recordings were supplied by the user as original WAV files created
+with **Stable Audio (stableaudio.com)**. The user confirmed that their license
+permits commercial use and distribution in Stillwater. This is user-confirmed
+provenance, not independent verification of the user's account or plan. No additional
+credit requirements were supplied. The game credits Stable Audio. Retain the original
+generation records and applicable plan/license terms with the project's rights records.
+Do not describe these recordings as CC0, royalty-free stock, or public domain.
 
 Included: wooden thud, stone/gravel settle, leafy rustle, small splash, removal,
 undo, muted menu swishes and a discovery-only chime. Random pitch/filter/timing
@@ -17,33 +23,30 @@ them. Only existing water/fire tiles emit those sounds; gain follows camera dist
 There is no continuously looping noise bed. Voices are capped at 32 and disconnected
 on completion. One shared noise buffer is generated after user interaction.
 
-## Music assets required — no placeholder music shipped
-The streaming player is ready; `MUSIC_TRACKS` is deliberately empty. Commission
-original tracks or acquire licenses explicitly covering commercial games, browser
-streaming and iOS/Android distribution. Keep the license and composer attribution
-here before enabling each entry. Do not assume a download being free means it is
-licensed for a paid game.
+## Included soundtrack
+Each source WAV is 60 seconds, stereo, 44.1 kHz / 16-bit. Titles below are friendly
+in-game labels; original filenames and SHA-256 fingerprints are in `sources.json`.
 
-| Suggested file | Brief |
-| --- | --- |
-| `porch-light.mp3` | 3–5 min, ~68 BPM: very mellow ambient piano and soft pads, minimal percussion |
-| `woodland-afternoon.mp3` | 3–5 min, ~76 BPM: warm piano, gentle bass, restrained kick/snare/hats, cozy lo-fi |
-| `lakeside-ramble.mp3` | 3–5 min, ~84 BPM: mellow guitar-led chillhop, lightly upbeat, soft drums |
+| Title | File | User-supplied musical description |
+| --- | --- | --- |
+| Quiet Horizon | `quiet-horizon.mp3` | Ambient post-rock |
+| Porchlight | `porchlight.mp3` | Cozy lo-fi |
+| Woodland Folk | `woodland-folk.mp3` | Indie folk |
+| Cozy Chillhop | `cozy-chillhop.mp3` | Cozy lo-fi chillhop |
+| Appalachian Morning | `appalachian-morning.mp3` | Modern Appalachian folk |
+| Forest Drift | `forest-drift.mp3` | Alternative lo-fi chillhop |
 
-Deliver stereo MP3 (160–192 kbps, 44.1 kHz), instrumental, consistent comfortable
-loudness around −18 LUFS integrated and ≤ −1 dBTP, with natural beginnings/endings.
-Avoid over-compression, conspicuous vinyl hiss and sharp percussion. Retain lossless
-masters outside the game deployment. These are briefs, not actual track titles or
-claims that recordings exist.
+The recordings are encoded as stereo 160 kbps MP3s after two-pass loudness
+normalization targeting −18 LUFS integrated and −1.5 dBTP. `sources.json` records
+measured encoded-file loudness/peaks and checksums. Original WAVs remain outside
+the repository; keep the user's masters as the source archive. No music is generated
+at runtime. No vocals, instruments or musical content were added during processing.
 
-Place files in `assets/audio/`, and populate `MUSIC_TRACKS` with
-`{title:'...',src:'./assets/audio/filename.mp3',credit:'...',license:'...'}` entries.
-Add those exact paths to the development server allowlist with `audio/mpeg` MIME.
-The beta staging script already includes assets. The player streams one track at a
-time, fades in over 3 seconds/out over 4 seconds, rotates the list with 8–16 second
-quiet gaps, skips failed assets and pauses when hidden, muted or music volume is zero.
-No empty-manifest audio requests are issued. Revalidate real track transitions,
-levels and licensing when the finished masters arrive.
+The player loads one track at a time only after user interaction, fades in over
+3 seconds/out over 4 seconds, rotates all six with 8–16 second quiet gaps, and pauses
+when hidden, muted or music volume is zero. A complete cycle contains six minutes
+of music plus gaps. These are short supplied tracks, not extended 3–5 minute versions.
+The existing music slider controls them independently of ambience/effects.
 
 ## Controls / lifecycle
 Independent master/music/ambience/effects gains and mute are stored separately
@@ -56,7 +59,7 @@ Soundscape profiles live in `SOUNDSCAPES` for future environment-specific conten
 ## Validation
 `npm run check` and `npm test` include audio preferences, state-change cues and
 camera attenuation. Optional `scripts/check-audio.mjs`, `check-music.mjs`, and
-`check-mobile.mjs` use an external Playwright installation via `PLAYWRIGHT_MODULE`
+`check-mobile.mjs` and `check-soundtrack.mjs` use an external Playwright installation via `PLAYWRIGHT_MODULE`
 and the local server via `STILLWATER_URL`. The music check generates short test tones
 in mocked HTTP responses only; no test recording is deployed. Browser checks cover
 user activation, signal output, saved controls, suspension, confirmation behavior,

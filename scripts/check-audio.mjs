@@ -10,6 +10,7 @@ try{
   const Original=window.AudioContext;
   window.AudioContext=class extends Original{constructor(...args){super(...args);window.audioContext=this;window.audioSources=0;window.audioAnalyser=this.createAnalyser();audioAnalyser.connect(this.destination);const dest=this.destination;const originalGain=this.createGain.bind(this);this.createGain=()=>{const gain=originalGain(),connect=gain.connect.bind(gain);gain.connect=(target,...rest)=>connect(target===dest?audioAnalyser:target,...rest);return gain;};}createBufferSource(){window.audioSources++;return super.createBufferSource();}createOscillator(){window.audioSources++;return super.createOscillator();}};
  });
+ await page.route('**/audio.js',async route=>{const response=await route.fetch();await route.fulfill({response,body:(await response.text()).replace(/export const MUSIC_TRACKS = \[[\s\S]*?\];/,'export const MUSIC_TRACKS = [];')});});
  await page.route('**/app.js',async route=>{const response=await route.fetch();await route.fulfill({response,body:await response.text()+`\nrenderer.setAnimationLoop(null);renderer.render(scene,camera);window.audioProbe={sound,edit,undo,stageTouchEdit,getState:()=>({blocks,water,terrain}),selectTool};`});});
  await page.goto(url);await page.waitForFunction(()=>window.audioProbe);
  assert.equal(await page.evaluate(()=>!!window.audioContext),false,'No autoplay context');

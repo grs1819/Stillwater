@@ -1,4 +1,6 @@
 import test from 'node:test';
+import {readFileSync,statSync} from 'node:fs';
+import {createHash} from 'node:crypto';
 import assert from 'node:assert/strict';
 import {audioPreferences,AUDIO_DEFAULTS,distanceGain,editSound,MUSIC_TRACKS} from '../audio.js';
 test('audio preferences recover corrupt data and clamp finite levels',()=>{
@@ -24,5 +26,17 @@ test('only actual state changes produce material-specific cues',()=>{
  const wet={...empty,water:{'0,0':'stream'}};
  assert.equal(editSound(empty,wet),'water');assert.equal(editSound(wet,empty),'remove');
  assert.equal(editSound(empty,{...empty,terrain:{'0,0':1}}),'stone');
- assert.equal(MUSIC_TRACKS.length,0,'Do not ship unlicensed or placeholder music');
+
+});
+
+test('all six soundtrack entries match the documented, nonempty encoded assets',()=>{
+ const sources=JSON.parse(readFileSync(new URL('../assets/audio/sources.json',import.meta.url)));
+ assert.equal(MUSIC_TRACKS.length,6);assert.equal(new Set(MUSIC_TRACKS.map(t=>t.src)).size,6);
+ for(const track of MUSIC_TRACKS){
+  const file=new URL('../'+track.src,import.meta.url),record=sources.tracks.find(t=>track.src.endsWith('/'+t.file));
+  assert.ok(record);assert.equal(track.title,record.title);assert.ok(statSync(file).size>100000);
+  assert.equal(createHash('sha256').update(readFileSync(file)).digest('hex'),record.mp3_sha256);
+  assert.ok(record.loudness_LUFS>=-19&&record.loudness_LUFS<=-17);
+  assert.ok(record.true_peak_dBTP<=-1);
+ }
 });
