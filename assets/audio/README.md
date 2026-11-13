@@ -1,88 +1,86 @@
-# Stillwater audio — first beta
+# Stillwater soundtrack and environmental audio
 
-## Included sounds and rights
-The effects and environmental ambience are original procedural synthesis in
-`audio.js`, authored for Stillwater, with no third-party samples. They may be used,
-modified and distributed with Stillwater, including commercial releases. They are
-stylized synthesized sounds, **not woodland field recordings**.
+## Recordings and provenance
+The creator supplied twelve original instrumental WAV recordings for Stillwater,
+each 180 seconds, stereo 44.1 kHz / 16-bit. Original names, source and encoded-file
+SHA-256 hashes, measured loudness, peaks and playback offsets are in `sources.json`.
+These recordings replace the previous six one-minute tracks; none of those old
+recordings is included in the current game assets. They are not represented as
+public-domain or Creative Commons stock. Retain the original generation/license
+records with the project's rights records. No additional credits were requested;
+the game identifies the soundtrack as original music supplied for Stillwater.
 
-The six music recordings were supplied by the user as original WAV files created
-with **Stable Audio (stableaudio.com)**. The user confirmed that their license
-permits commercial use and distribution in Stillwater. This is user-confirmed
-provenance, not independent verification of the user's account or plan. No additional
-credit requirements were supplied. The game credits Stable Audio. Retain the original
-generation records and applicable plan/license terms with the project's rights records.
-Do not describe these recordings as CC0, royalty-free stock, or public domain.
+| In-game title | Playback file |
+| --- | --- |
+| Lakeside Haze | lakeside-haze.mp3 |
+| Pine & Sky | pine-and-sky.mp3 |
+| Distant Shores | distant-shores.mp3 |
+| Porch Café | porch-cafe.mp3 |
+| Golden Afternoon | golden-afternoon.mp3 |
+| Woodland Wander | woodland-wander.mp3 |
+| Fireside Jazz | fireside-jazz.mp3 |
+| Slow Current | slow-current.mp3 |
+| Moss & Rain | moss-and-rain.mp3 |
+| Cedar Trail | cedar-trail.mp3 |
+| Open Clearing | open-clearing.mp3 |
+| Evening Reflections | evening-reflections.mp3 |
 
-Included: wooden thud, stone/gravel settle, leafy rustle, small splash, removal,
-undo, muted menu swishes and a discovery-only chime. Random pitch/filter/timing
-variations keep ordinary interactions non-melodic. Woodland events include brief
-bird calls, cricket pulses, distant cicada swells, soft tree wind, stream/river
-flow, lake laps and campfire crackles. Events have 6–13 seconds of silence between
-them. Only existing water/fire tiles emit those sounds; gain follows camera distance.
-There is no continuously looping noise bed. Voices are capped at 32 and disconnected
-on completion. One shared noise buffer is generated after user interaction.
+Friendly titles label the uploaded recordings; the music itself was not rearranged.
+The original WAVs remain untouched outside the repository. Playback copies use
+160 kbps stereo MP3, two-pass normalization targeting −18 LUFS / −1.5 dBTP.
+The twelve copies total about 43.2 MB. Only two streaming elements are retained,
+not twelve fully decoded buffers. Upcoming music preloads while the current song
+plays; the complete soundtrack is not downloaded on page load.
 
-## Included soundtrack
-Each source WAV is 60 seconds, stereo, 44.1 kHz / 16-bit. Titles below are friendly
-in-game labels; original filenames and SHA-256 fingerprints are in `sources.json`.
+## Player
+`music-player.js` owns a shuffled sequence and two streaming decks, connected to
+the existing music gain bus. Automatic transitions overlap for seven seconds;
+manual changes overlap for one second. Linear complementary gain ramps avoid a
+zero-gain gap. Late loading keeps the outgoing song playing while the incoming
+song starts; a stalled network or denied browser playback can still interrupt sound.
+At most two songs overlap, and playback controls briefly disable skipping during
+a transition so rapid clicks cannot accumulate audio players.
 
-| Title | File | User-supplied musical description |
-| --- | --- | --- |
-| Quiet Horizon | `quiet-horizon.mp3` | Ambient post-rock |
-| Porchlight | `porchlight.mp3` | Cozy lo-fi |
-| Woodland Folk | `woodland-folk.mp3` | Indie folk |
-| Cozy Chillhop | `cozy-chillhop.mp3` | Cozy lo-fi chillhop |
-| Appalachian Morning | `appalachian-morning.mp3` | Modern Appalachian folk |
-| Forest Drift | `forest-drift.mp3` | Alternative lo-fi chillhop |
+Every song plays once before reshuffling. A new cycle cannot begin with the last
+song of the preceding cycle. Previous follows actual playback history; Next follows
+that history forward before drawing a new shuffled song. Explicit previous-track
+navigation can naturally replay a song. There is no automatic three-play repeat.
 
-The recordings are encoded as stereo 160 kbps MP3s after two-pass loudness
-normalization targeting −18 LUFS integrated and −1.5 dBTP. `sources.json` records
-measured encoded-file loudness/peaks and checksums. Original WAVs remain outside
-the repository; keep the user's masters as the source archive. No music is generated
-at runtime. No vocals, instruments or musical content were added during processing.
+Measured edge silence below −55 dB is bypassed with `start`/`end` playback offsets
+and 80 ms padding. These offsets never rewrite the originals or truncate the encoded
+copies. Fades begin relative to the audible end offset rather than the file ending.
 
-The player loads one track at a time only after user interaction, fades in over
-0.8 seconds/out over 1.2 seconds, repeats each track three times with a 0.25-second
-replay gap, then advances with a 1-second gap (plus up to 0.5 seconds scheduler latency), and pauses
-when hidden, muted or music volume is zero. A complete cycle contains 18 minutes
-of music plus short gaps. These are short supplied tracks, not extended 3–5 minute versions.
-The existing music slider controls them independently of ambience/effects.
+Music Play/Pause pauses only the soundtrack. Existing master/music/ambience/effect
+volume preferences and mute retain their storage key and values. Music pause is
+session state, independent of global mute or temporarily hiding the tab. Foreground
+resume preserves the song and any in-progress crossfade. Browsers still require a
+user gesture; both decks are primed at zero gain during initial interaction for iOS.
+The existing touch-end AudioContext recovery and supported Safari playback audio
+session are retained.
 
-## Controls / lifecycle
-Independent master/music/ambience/effects gains and mute are stored separately
-from villages. Beta staging isolates the preference key too. Audio starts after
-an interaction, never on page load. Tab hiding, focus loss and page navigation stop
-short voices, pause music and suspend the context; foreground interaction can
-resume it if the browser requires a fresh gesture. No sound is essential to play.
-Soundscape profiles live in `SOUNDSCAPES` for future environment-specific content.
+## Environmental sounds and effects
+All environmental and building effects remain the original procedural synthesis
+in `audio.js`, with no third-party samples. They may be used, modified and distributed
+with Stillwater, including commercial releases. They are stylized synthesis, not
+field recordings. Birds, crickets, cicadas, intermittent wind, distance-sensitive
+streams/rivers/lakes and fire crackles still have their own ambience bus and timing.
+Wood, stone, trees, water, removal, Undo, menus and discovery chimes still use the
+separate effects bus. Pausing music never suspends the context or ambience scheduler.
+Music retains its conservative output level so the existing ambience balance is kept.
 
 ## Validation
-`npm run check` and `npm test` include audio preferences, state-change cues and
-camera attenuation. Optional `scripts/check-audio.mjs`, `check-music.mjs`, and
-`check-mobile.mjs` and `check-soundtrack.mjs` use an external Playwright installation via `PLAYWRIGHT_MODULE`
-and the local server via `STILLWATER_URL`. The music check generates short test tones
-in mocked HTTP responses only; no test recording is deployed. Browser checks cover
-user activation, signal output, saved controls, suspension, confirmation behavior,
-small screens and playlist gaps/rotation. Physical iPhone/Safari listening remains
-part of beta acceptance; synthesized ambience is an initial artistic treatment.
+- `npm run check` and `npm test`: syntax, game regressions, track integrity and
+  measured levels, shuffle uniqueness across cycles, history and silence offsets.
+- `scripts/check-crossfade.mjs`: all twelve real MP3s, seven-second overlap with
+  nonzero combined gain, preloading, previous/next, cycle boundaries, music-only
+  pause with ongoing woodland events, lifecycle and 44px mobile controls.
+- Existing `check-audio`, `check-mobile`, `check-anywhere-audio`, `check-iphone-audio`
+  and `check-audio-activation` scripts cover settings, effects, building controls
+  and gesture recovery. `check-music`/`check-soundtrack` alias the new crossfade check.
+- Browser scripts use external Playwright through `PLAYWRIGHT_MODULE` and a running
+  server at `STILLWATER_URL`, without adding a shipped dependency.
 
-### Browser activation recovery
-Music playback is requested synchronously during pointer/click/key activation,
-before awaiting the AudioContext. If a browser denies playback, the player reports
-“Click or tap anywhere to start music” and retries on the next interaction rather
-than repeatedly retrying a blocked timer. Zero master/music volume is also reported.
-`scripts/check-audio-activation.mjs` simulates a denied media play with an already
-running audio context and checks recovery on a later real click.
-
-The first click/tap can be on a menu; construction is not required. Saved mute
-and zero-volume preferences remain respected. `check-anywhere-audio.mjs` checks
-first menu activation on desktop and touch without changing the village.
-
-### iPhone output activation
-Every accepted gesture may retry AudioContext.resume(), even if an earlier resume
-promise is still pending. Touchend is included explicitly. A suspended/interrupted
-context reports “Tap again to enable audio” instead of claiming music is playing.
-Where supported, Safari's Audio Session API requests the playback category.
-`check-iphone-audio.mjs` simulates the pending-resume failure in Chromium; it is not
-a substitute for a physical iPhone/Safari listening test.
+Chromium desktop/touch checks do not establish physical iPhone/Android behavior.
+The WebKit browser download was blocked by the cloud network policy; physical
+Safari listening, especially automatic transitions after the first gesture,
+remains a beta acceptance check.

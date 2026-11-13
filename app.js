@@ -1,4 +1,4 @@
-import {createAudio,editSound} from './audio.js?v=music-repeat-3';
+import {createAudio,editSound} from './audio.js?v=crossfade-1';
 import {terrainHeight,terrainLevel,levelSite,editTerrain,TERRAIN_STEP,borderHeight} from './terrain.js';
 import * as THREE from 'three';
 import {OrbitControls} from './vendor/OrbitControls.js';
@@ -31,7 +31,7 @@ controls.mouseButtons={LEFT:null,MIDDLE:THREE.MOUSE.ROTATE,RIGHT:null};
 controls.touches={ONE:THREE.TOUCH.ROTATE,TWO:THREE.TOUCH.DOLLY_PAN};
 function recenter(){camera.position.set(19,20,25);controls.target.set(0,0,0);controls.update();}
 recenter();
-const sound=createAudio({storageKey:'mosswood-v2-audio',getListener:()=>camera.position,onStatus:message=>{$('#audio-status').textContent=message;}});
+const sound=createAudio({storageKey:'mosswood-v2-audio',getListener:()=>camera.position,onStatus:message=>{$('#audio-status').textContent=message;},onMusicChange:updateMusicControls});
 scene.add(new THREE.HemisphereLight('#dcecf1','#829273',1.65));
 const sunlight=new THREE.DirectionalLight('#fff0d6',2.7);
 sunlight.position.set(-12,25,12);sunlight.castShadow=true;
@@ -1023,6 +1023,19 @@ for(const input of document.querySelectorAll('[data-volume]')){
  const output=$(`#${input.id}-value`);output.value=`${input.value}%`;
  input.addEventListener('input',()=>{output.value=`${input.value}%`;sound.setPreferences({[key]:Number(input.value)/100});});
 }
+function updateMusicControls(state){
+ const busy=state.loading||state.transitioning;
+ $('#music-previous').disabled=!state.canPrevious||busy;
+ $('#music-next').disabled=!state.available||busy;
+ $('#music-play').setAttribute('aria-label',state.paused?'Play music':'Pause music');
+ $('#music-play').title=state.paused?'Play music':'Pause music';
+ $('#music-play .play-symbol').hidden=!state.paused;
+ $('#music-play .pause-symbol').hidden=!!state.paused;
+}
+$('#music-play').onclick=()=>sound.toggleMusic();
+$('#music-next').onclick=()=>sound.nextMusic();
+$('#music-previous').onclick=()=>sound.previousMusic();
+updateMusicControls(sound.musicState);
 function updateMute(){const muted=sound.preferences.muted;$('#audio-mute').setAttribute('aria-pressed',String(muted));$('#audio-mute').textContent=muted?'Unmute':'Mute';}
 updateMute();
 $('#audio-mute').onclick=()=>{sound.setPreferences({muted:!sound.preferences.muted});updateMute();};

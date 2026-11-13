@@ -29,9 +29,9 @@ test('only actual state changes produce material-specific cues',()=>{
 
 });
 
-test('all six soundtrack entries match the documented, nonempty encoded assets',()=>{
+test('all twelve soundtrack entries match the documented, nonempty encoded assets',()=>{
  const sources=JSON.parse(readFileSync(new URL('../assets/audio/sources.json',import.meta.url)));
- assert.equal(MUSIC_TRACKS.length,6);assert.equal(new Set(MUSIC_TRACKS.map(t=>t.src)).size,6);
+ assert.equal(MUSIC_TRACKS.length,12);assert.equal(new Set(MUSIC_TRACKS.map(t=>t.src)).size,12);
  for(const track of MUSIC_TRACKS){
   const file=new URL('../'+track.src,import.meta.url),record=sources.tracks.find(t=>track.src.endsWith('/'+t.file));
   assert.ok(record);assert.equal(track.title,record.title);assert.ok(statSync(file).size>100000);

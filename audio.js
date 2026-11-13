@@ -1,12 +1,79 @@
+import {createMusicPlayer} from './music-player.js?v=crossfade-1';
 // Original procedural effects and user-supplied Stable Audio music.
 // Music provenance and processing: assets/audio/README.md and sources.json.
 export const MUSIC_TRACKS = [
-  {title:'Quiet Horizon',src:'./assets/audio/quiet-horizon.mp3'},
-  {title:'Porchlight',src:'./assets/audio/porchlight.mp3'},
-  {title:'Woodland Folk',src:'./assets/audio/woodland-folk.mp3'},
-  {title:'Cozy Chillhop',src:'./assets/audio/cozy-chillhop.mp3'},
-  {title:'Appalachian Morning',src:'./assets/audio/appalachian-morning.mp3'},
-  {title:'Forest Drift',src:'./assets/audio/forest-drift.mp3'},
+  {
+    "title": "Lakeside Haze",
+    "src": "./assets/audio/lakeside-haze.mp3",
+    "start": 0,
+    "end": 179.767
+  },
+  {
+    "title": "Pine & Sky",
+    "src": "./assets/audio/pine-and-sky.mp3",
+    "start": 0,
+    "end": 180.0
+  },
+  {
+    "title": "Distant Shores",
+    "src": "./assets/audio/distant-shores.mp3",
+    "start": 0,
+    "end": 179.471
+  },
+  {
+    "title": "Porch Café",
+    "src": "./assets/audio/porch-cafe.mp3",
+    "start": 0,
+    "end": 179.386
+  },
+  {
+    "title": "Golden Afternoon",
+    "src": "./assets/audio/golden-afternoon.mp3",
+    "start": 0,
+    "end": 179.544
+  },
+  {
+    "title": "Woodland Wander",
+    "src": "./assets/audio/woodland-wander.mp3",
+    "start": 0,
+    "end": 179.932
+  },
+  {
+    "title": "Fireside Jazz",
+    "src": "./assets/audio/fireside-jazz.mp3",
+    "start": 0,
+    "end": 179.417
+  },
+  {
+    "title": "Slow Current",
+    "src": "./assets/audio/slow-current.mp3",
+    "start": 0,
+    "end": 177.268
+  },
+  {
+    "title": "Moss & Rain",
+    "src": "./assets/audio/moss-and-rain.mp3",
+    "start": 0,
+    "end": 179.099
+  },
+  {
+    "title": "Cedar Trail",
+    "src": "./assets/audio/cedar-trail.mp3",
+    "start": 0.327,
+    "end": 179.175
+  },
+  {
+    "title": "Open Clearing",
+    "src": "./assets/audio/open-clearing.mp3",
+    "start": 0.123,
+    "end": 179.727
+  },
+  {
+    "title": "Evening Reflections",
+    "src": "./assets/audio/evening-reflections.mp3",
+    "start": 0.084,
+    "end": 179.083
+  }
 ];
 export const AUDIO_DEFAULTS = {master:.65,music:.45,ambience:.35,effects:.55,muted:false};
 export function audioPreferences(value={}) {
@@ -30,15 +97,18 @@ export function editSound(before,after){
 }
 // One sparse event at a time, with silence between events. Extend per environment later.
 export const SOUNDSCAPES={woodlands:{pause:[6,13],events:['bird','bird','cricket','cicada','wind','water','fire']}};
-export function createAudio({storageKey='stillwater-audio-v1',tracks=MUSIC_TRACKS,getListener=()=>({x:0,y:20,z:20}),onStatus=()=>{}}={}){
+export function createAudio({storageKey='stillwater-audio-v1',tracks=MUSIC_TRACKS,getListener=()=>({x:0,y:20,z:20}),onStatus=()=>{},onMusicChange=()=>{}}={}){
   let prefs={...AUDIO_DEFAULTS};try{prefs=audioPreferences(JSON.parse(localStorage.getItem(storageKey)));}catch{}
-  let ctx,master,buses,noise,timer,media,musicGain,unlocked=false,active=!document.hidden,musicBlocked=false;
-  let sources=[],voices=new Set(),nextAmbient=0,nextMusic=0,trackIndex=-1,completedPlays=0,loading=false,trackFinished=true,failed=new Set(),lastEffect=-1;
+  let ctx,master,buses,noise,timer,music,unlocked=false,active=!document.hidden;
+  let sources=[],voices=new Set(),nextAmbient=0,lastEffect=-1;
   let environment='woodlands';
   const random=(a,b)=>a+Math.random()*(b-a);
-  const status=()=>onStatus(!ctx?'Click or tap anywhere for sound.':!active?'Sound paused.':prefs.muted?'Sound muted.':!prefs.master?'Master volume is zero.':!prefs.music?'Music volume is zero.':ctx.state!=='running'?'Tap again to enable audio.':!tracks.length?'Woodland sounds on. Music coming soon.':musicBlocked?'Click or tap anywhere to start music.':failed.size===tracks.length?'Music unavailable. Try refreshing beta.':media&&!media.paused&&tracks[trackIndex]?`Playing: ${tracks[trackIndex].title}`:'Woodland sounds on.');
+  const status=()=>{
+    const m=music?.state;
+    onStatus(!ctx?'Click or tap anywhere for sound.':!active?'Sound paused.':prefs.muted?'Sound muted.':!prefs.master?'Master volume is zero.':!prefs.music?'Music volume is zero.':ctx.state!=='running'?'Tap again to enable audio.':!tracks.length?'Woodland sounds on.':m?.paused?'Music paused · woodland sounds continue.':m?.blocked?'Click or tap anywhere to start music.':m?.error?'Music unavailable. Try refreshing beta.':m?.title?`Playing: ${m.title}`:'Loading soundtrack…');
+  };
   function ramp(param,value,seconds=.12){const now=ctx.currentTime;param.cancelScheduledValues(now);param.setTargetAtTime(value,now,Math.max(.01,seconds/3));}
-  function apply(){if(!ctx)return; ramp(master.gain,active&&!prefs.muted?prefs.master:0);for(const key of ['music','ambience','effects'])ramp(buses[key].gain,prefs[key]);if(!prefs.music||!prefs.master||prefs.muted)media?.pause();status();}
+  function apply(){if(!ctx)return; ramp(master.gain,active&&!prefs.muted?prefs.master:0);for(const key of ['music','ambience','effects'])ramp(buses[key].gain,prefs[key]);music?.setEnabled(active&&!prefs.muted&&prefs.master>0&&prefs.music>0);status();}
   function setPreferences(patch){prefs=audioPreferences({...prefs,...patch});try{localStorage.setItem(storageKey,JSON.stringify(prefs));}catch{}apply();status();}
   function init(){
     // Supported by newer Safari: use the media playback route rather than
@@ -50,16 +120,9 @@ export function createAudio({storageKey='stillwater-audio-v1',tracks=MUSIC_TRACK
     // Reuse one short noise buffer. Each voice starts at a random offset.
     noise=ctx.createBuffer(1,ctx.sampleRate*2,ctx.sampleRate);const data=noise.getChannelData(0);let brown=0;
     for(let i=0;i<data.length;i++){brown=(brown+(Math.random()*2-1)*.07)/1.02;data[i]=brown*3;}
-    if(tracks.length){
-      media=new Audio();media.preload='none';media.loop=false;
-      musicGain=ctx.createGain();musicGain.gain.value=0;
-      ctx.createMediaElementSource(media).connect(musicGain);musicGain.connect(buses.music);
-      media.addEventListener('ended',()=>{loading=false;trackFinished=true;completedPlays++;nextMusic=ctx.currentTime+(completedPlays<3?.25:1);status();});
-      media.addEventListener('playing',status);
-      media.addEventListener('error',()=>{if(trackIndex>=0)failed.add(trackIndex);loading=false;trackFinished=true;nextMusic=ctx.currentTime+10;status();});
-    }
+    music=createMusicPlayer({context:ctx,bus:buses.music,tracks,onChange:state=>{status();onMusicChange(state);}});
     ctx.addEventListener('statechange',status);
-    nextAmbient=ctx.currentTime+random(3,6);nextMusic=ctx.currentTime+2;
+    nextAmbient=ctx.currentTime+random(3,6);
     timer=setInterval(tick,500);apply();return true;
   }
   async function unlock(){
@@ -67,9 +130,8 @@ export function createAudio({storageKey='stillwater-audio-v1',tracks=MUSIC_TRACK
     active=true;
     try{
       if(!ctx&&!init())return;
-      // Call play synchronously inside the gesture, before awaiting AudioContext.
-      // Touch browsers may grant media activation only on pointerup/click.
-      if(media&&media.paused&&!prefs.muted&&prefs.master&&prefs.music&&(trackIndex<0||musicBlocked||ctx.currentTime>=nextMusic))playMusic();
+      music.setEnabled(active&&!prefs.muted&&prefs.master>0&&prefs.music>0);
+      music.activate();
       if(unlocked&&ctx.state==='running'){apply();return;}
       // Safari may leave resume() pending when pointerdown is not an accepted
       // gesture. Every later touchend/click must be allowed to retry resume().
@@ -131,45 +193,26 @@ export function createAudio({storageKey='stillwater-audio-v1',tracks=MUSIC_TRACK
     voice({bus,position,frequency:lake?500:1100,duration,volume:lake?.22:.3,attack:.65});
     for(let i=0;i<3;i++)voice({bus,position,frequency:random(650,1400),duration:.3,volume:.12,attack:.07,at:.5+i*.6});return duration;
   }
-  function playMusic(){
-    if(loading||!media||failed.size===tracks.length)return;
-    if(trackFinished){
-      if(trackIndex>=0&&completedPlays<3&&!failed.has(trackIndex)){
-        media.currentTime=0; // Reuse the loaded track; only completed plays count.
-      }else{
-        do{trackIndex=(trackIndex+1)%tracks.length;}while(failed.has(trackIndex));
-        completedPlays=0;media.src=new URL(tracks[trackIndex].src,import.meta.url).href;
-      }
-      musicGain.gain.value=0;trackFinished=false;
-    }
-    loading=true;
-    media.play().then(()=>{musicBlocked=false;status();}).catch(e=>{
-      if(e.name==='NotAllowedError')musicBlocked=true;
-      else if(e.name!=='AbortError'){failed.add(trackIndex);trackFinished=true;}
-      nextMusic=ctx.currentTime+10;status();
-    }).finally(()=>{loading=false;});
-  }
   function tick(){
     if(!unlocked||!active||ctx.state!=='running')return;
     for(const item of voices)if(item.spatial)ramp(item.spatial.gain,distanceGain(getListener(),item.position),.5);
     if(prefs.muted||!prefs.master)return;
     const now=ctx.currentTime;
     if(prefs.ambience&&now>=nextAmbient){const config=SOUNDSCAPES[environment],event=config.events[Math.floor(Math.random()*config.events.length)];const duration=ambience(event);nextAmbient=now+duration+random(...config.pause);}
-    if(prefs.music&&media){
-      if(media.paused&&!musicBlocked&&now>=nextMusic)playMusic();
-      if(!media.paused){const remaining=Number.isFinite(media.duration)?media.duration-media.currentTime:10;const fade=Math.min(1,media.currentTime/.8,remaining/1.2);ramp(musicGain.gain,Math.max(0,fade)*.65,.5);}
-    }
   }
   function setActive(value){
     active=value;if(!ctx)return;
-    if(!value){master.gain.cancelScheduledValues(ctx.currentTime);master.gain.setValueAtTime(0,ctx.currentTime);media?.pause();for(const item of voices){try{item.source.stop();}catch{}}ctx.suspend().catch(()=>{});}
+    if(!value){master.gain.cancelScheduledValues(ctx.currentTime);master.gain.setValueAtTime(0,ctx.currentTime);music?.setEnabled(false);for(const item of voices){try{item.source.stop();}catch{}}ctx.suspend().catch(()=>{});}
     else if(unlocked)unlock();
   }
   const onVisibility=()=>setActive(!document.hidden),onBlur=()=>setActive(false),onFocus=()=>{if(!document.hidden)setActive(true);};
   document.addEventListener('pointerdown',unlock,{capture:true});document.addEventListener('pointerup',unlock,{capture:true});document.addEventListener('touchend',unlock,{capture:true,passive:true});document.addEventListener('click',unlock,{capture:true});document.addEventListener('keydown',unlock,{capture:true});
   document.addEventListener('visibilitychange',onVisibility);window.addEventListener('blur',onBlur);window.addEventListener('focus',onFocus);window.addEventListener('pagehide',onBlur);window.addEventListener('pageshow',onFocus);
-  return {effect,unlock,setPreferences,get preferences(){return {...prefs};},
+  return {effect,unlock,setPreferences,
+    toggleMusic(){if(!music){unlock();return;}music.toggle();},
+    nextMusic(){music?.next();},previousMusic(){music?.previous();},
+    get musicState(){return music?.state||{paused:false,title:'',canPrevious:false,available:tracks.length>0};},get preferences(){return {...prefs};},
     setWorld(value){sources=value;},setEnvironment(value){if(SOUNDSCAPES[value])environment=value;},
-    dispose(){clearInterval(timer);media?.pause();for(const item of voices)item.source.stop();ctx?.close();document.removeEventListener('pointerdown',unlock,true);document.removeEventListener('pointerup',unlock,true);document.removeEventListener('touchend',unlock,true);document.removeEventListener('click',unlock,true);document.removeEventListener('keydown',unlock,true);document.removeEventListener('visibilitychange',onVisibility);window.removeEventListener('blur',onBlur);window.removeEventListener('focus',onFocus);window.removeEventListener('pagehide',onBlur);window.removeEventListener('pageshow',onFocus);},
+    dispose(){clearInterval(timer);music?.dispose();for(const item of voices)item.source.stop();ctx?.close();document.removeEventListener('pointerdown',unlock,true);document.removeEventListener('pointerup',unlock,true);document.removeEventListener('touchend',unlock,true);document.removeEventListener('click',unlock,true);document.removeEventListener('keydown',unlock,true);document.removeEventListener('visibilitychange',onVisibility);window.removeEventListener('blur',onBlur);window.removeEventListener('focus',onFocus);window.removeEventListener('pagehide',onBlur);window.removeEventListener('pageshow',onFocus);},
   };
 }
