@@ -29,7 +29,8 @@ or repetitive grinding.
   progression data need explicit schema versions, migrations and recovery paths.
   Keep camera/gesture state and unconfirmed previews out of village saves.
 - Retain a local-first save path. Design accounts/cloud sync separately, including
-  offline behavior, conflict resolution, ownership and deletion; none are implemented yet.
+  offline behavior, conflict resolution, ownership and deletion. Local slots are
+  implemented; authentication and remote synchronization are pending backend setup.
 - Future management rules should be separate from rendering and switchable by mode.
   Reuse roles, connected buildings, navigation and existing unlock data where appropriate.
 - Give audio its own lifecycle and volume buses, started by user interaction.
@@ -37,18 +38,24 @@ or repetitive grinding.
 - Follow AGENTS.md: develop on beta, validate, stage the committed source into
   `/beta/`, preserve isolated beta saves, and promote only with explicit approval.
 
-## Current increment: mobile controls
-A single touch tap immediately applies the selected tool. Long press opens quick
-actions including Undo. Camera gestures and cancelled touches never commit edits. Preserve desktop clicks, existing
-saves and the long-press petal menu. Check touch sequences, cancellations, small
-screens, keyboard accessibility and save/reload before beta publication.
+## Current increment: village saves
+Three named local village slots, export/import, safe migration from the existing
+single village, and recovery handling. Guest and future account collections use
+separate storage namespaces; beta remains isolated from live. Original saves stay
+untouched as recovery copies. Stale tabs and failed storage writes cannot silently
+replace a newer saved collection.
 
-Next: test this interaction on physical iOS/Android devices, then profile mobile
-performance. Scope each subsequent foundation feature separately.
+Supabase project identified; database migration and setup notes are in `backend/`.
+Authentication and cloud synchronization are not enabled or remotely tested yet.
+Next: apply and verify ownership policies, then connect sign-in and revision-checked
+sync with explicit conflict recovery. Never claim cloud protection for local saves.
 
 ## Validation
 Run `npm run check` and `npm test`. The beta source also includes
 `scripts/check-mobile.mjs`: with the local beta server running, provide
 `STILLWATER_URL` and `PLAYWRIGHT_MODULE` for an existing Playwright installation.
-The check exercises confirmations, gestures, cancellation, save/reload and mouse
+The check exercises taps, gestures, cancellation, save/reload and mouse
 behavior without adding a browser dependency to the shipped game.
+
+`scripts/check-villages.mjs` covers migration, slot switching, names, deletion,
+export/import, reload persistence and mobile dialog layout.
