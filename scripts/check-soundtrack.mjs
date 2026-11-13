@@ -8,7 +8,7 @@ try{
  const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});const errors=[],mp3s=[];
  page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(r.url().endsWith('.mp3'))mp3s.push(r.url());});
  await page.addInitScript(()=>{const Original=window.Audio;window.Audio=function(){const a=new Original();window.trackPlayer=a;return a;};Math.random=()=>0;});
- await page.route('**/app.js',async route=>{const response=await route.fetch();await route.fulfill({response,body:await response.text()+'\nrenderer.setAnimationLoop(null);renderer.render(scene,camera);window.soundtrack=sound;'});});
+ await page.route('**/app.js*',async route=>{const response=await route.fetch();await route.fulfill({response,body:await response.text()+'\nrenderer.setAnimationLoop(null);renderer.render(scene,camera);window.soundtrack=sound;'});});
  await page.goto(url);await page.waitForFunction(()=>window.soundtrack);assert.equal(mp3s.length,0,'No pre-gesture downloads');
  await page.locator('#audio-toggle').tap();
  for(const [i,track]of MUSIC_TRACKS.entries()){

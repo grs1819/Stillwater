@@ -11,7 +11,7 @@ try{
   HTMLMediaElement.prototype.play=function(){window.attempts++;window.player=this;if(!allowMusic||!navigator.userActivation.isActive)return Promise.reject(new DOMException('Gesture required','NotAllowedError'));window.acceptedGesture=true;return original.call(this);};
   const {createAudio}=await import('./audio.js');window.engine=createAudio({onStatus:s=>document.querySelector('#status').textContent=s});
  });
- await page.click('#tap');await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('Tap the speaker'));
+ await page.click('#tap');await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('Click or tap anywhere'));
  const attempts=await page.evaluate(()=>window.attempts);await page.waitForTimeout(1100);assert.equal(await page.evaluate(()=>window.attempts),attempts,'No timer retries for gesture rejection');
  await page.evaluate(()=>window.allowMusic=true);await page.click('#tap');await page.waitForFunction(()=>window.player.currentTime>.2&&!window.player.paused);
  assert.equal(await page.evaluate(()=>window.acceptedGesture),true);

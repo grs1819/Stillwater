@@ -36,7 +36,7 @@ export function createAudio({storageKey='stillwater-audio-v1',tracks=MUSIC_TRACK
   let sources=[],voices=new Set(),nextAmbient=0,nextMusic=0,trackIndex=-1,loading=false,trackFinished=true,failed=new Set(),lastEffect=-1;
   let environment='woodlands';
   const random=(a,b)=>a+Math.random()*(b-a);
-  const status=()=>onStatus(!ctx?'Sound starts when you interact.':!active?'Sound paused.':prefs.muted?'Sound muted.':!prefs.master?'Master volume is zero.':!prefs.music?'Music volume is zero.':!tracks.length?'Woodland sounds on. Music coming soon.':musicBlocked?'Tap the speaker button to start music.':failed.size===tracks.length?'Music unavailable. Try refreshing beta.':media&&!media.paused&&tracks[trackIndex]?`Playing: ${tracks[trackIndex].title}`:'Woodland sounds on.');
+  const status=()=>onStatus(!ctx?'Click or tap anywhere for sound.':!active?'Sound paused.':prefs.muted?'Sound muted.':!prefs.master?'Master volume is zero.':!prefs.music?'Music volume is zero.':!tracks.length?'Woodland sounds on. Music coming soon.':musicBlocked?'Click or tap anywhere to start music.':failed.size===tracks.length?'Music unavailable. Try refreshing beta.':media&&!media.paused&&tracks[trackIndex]?`Playing: ${tracks[trackIndex].title}`:'Woodland sounds on.');
   function ramp(param,value,seconds=.12){const now=ctx.currentTime;param.cancelScheduledValues(now);param.setTargetAtTime(value,now,Math.max(.01,seconds/3));}
   function apply(){if(!ctx)return; ramp(master.gain,active&&!prefs.muted?prefs.master:0);for(const key of ['music','ambience','effects'])ramp(buses[key].gain,prefs[key]);if(!prefs.music||!prefs.master||prefs.muted)media?.pause();status();}
   function setPreferences(patch){prefs=audioPreferences({...prefs,...patch});try{localStorage.setItem(storageKey,JSON.stringify(prefs));}catch{}apply();status();}
@@ -59,7 +59,7 @@ export function createAudio({storageKey='stillwater-audio-v1',tracks=MUSIC_TRACK
     timer=setInterval(tick,500);apply();return true;
   }
   async function unlock(){
-    if(document.hidden||starting)return;
+    if(document.hidden)return;
     active=true;
     try{
       if(!ctx&&!init())return;
@@ -67,8 +67,12 @@ export function createAudio({storageKey='stillwater-audio-v1',tracks=MUSIC_TRACK
       // Touch browsers may grant media activation only on pointerup/click.
       if(media&&media.paused&&!prefs.muted&&prefs.master&&prefs.music&&(trackIndex<0||musicBlocked||ctx.currentTime>=nextMusic))playMusic();
       if(unlocked&&ctx.state==='running'){apply();return;}
-      starting=true;await ctx.resume();unlocked=true;apply();
-    }catch{onStatus('Tap the speaker button to enable audio.');}finally{starting=false;}
+      // Keep gesture playback above this guard: a touch release can arrive while
+      // the initial AudioContext resume is still pending.
+      if(starting)return;
+      starting=true;
+      try{await ctx.resume();unlocked=true;apply();}finally{starting=false;}
+    }catch{onStatus('Click or tap anywhere to enable audio.');}
   }
   // Soft attack/release, restrained bandwidth, bounded voices; no endless loops.
   function voice({bus='effects',at=0,duration=.25,volume=.1,frequency=500,endFrequency,tonal=false,attack=.012,position=null}){

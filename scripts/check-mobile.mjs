@@ -6,7 +6,7 @@ const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'
 try{
  const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:1});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.route('**/app.js',async route=>{
+ await page.route('**/app.js*',async route=>{
   const response=await route.fetch();await route.fulfill({response,body:await response.text()+`\nrenderer.setAnimationLoop(null);controls.enableDamping=false;renderer.render(scene,camera);window.probe={preview:()=>ghost.visible&&touchOutline.visible,read:()=>({blocks,water,terrain}),selectTool,reset:()=>{camera.position.set(19,20,25);controls.target.set(0,0,0);controls.update();camera.updateMatrixWorld(true);},camera:()=>({pos:camera.position.toArray(),target:controls.target.toArray(),distance:camera.position.distanceTo(controls.target)}),point:(x,y,z)=>{camera.updateMatrixWorld(true);const p=new THREE.Vector3(x,y,z).project(camera);return {x:(p.x+1)*innerWidth/2,y:(1-p.y)*innerHeight/2};}};`});
  });
  await page.addInitScript(()=>{if(!sessionStorage.getItem('mobile-seeded')){localStorage.setItem('mosswood-v2',JSON.stringify({blocks:{},peak:12}));sessionStorage.setItem('mobile-seeded','1');}});
