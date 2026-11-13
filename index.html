@@ -18,6 +18,22 @@
     </div>
     <div class="status"><span class="sun" aria-hidden="true">☀</span> <span id="population">0 villagers</span></div>
   </header>
+  <button id="audio-toggle" class="audio-toggle" aria-label="Sound settings" title="Sound settings" aria-expanded="false" aria-controls="audio-panel"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4 5 9H2v6h3l6 5ZM15 8c3 2 3 6 0 8M18 5c5 4 5 10 0 14"/></svg></button>
+  <section id="audio-panel" class="audio-panel" aria-label="Sound settings" hidden>
+    <div class="audio-heading"><h2>Sounds of Stillwater</h2><button id="audio-close" aria-label="Close sound settings">×</button></div>
+    <div class="music-controls" role="group" aria-label="Music playback">
+      <button id="music-previous" type="button" aria-label="Previous track" title="Previous track" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5v14M19 5 8 12l11 7Z"/></svg></button>
+      <button id="music-play" type="button" aria-label="Pause music" title="Pause music"><svg class="pause-symbol" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg><svg class="play-symbol" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="m8 4 12 8-12 8Z"/></svg></button>
+      <button id="music-next" type="button" aria-label="Next track" title="Next track"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 5v14M5 5l11 7-11 7Z"/></svg></button>
+    </div>
+    <p id="audio-status" role="status">Click or tap anywhere for sound.</p>
+    <label for="volume-master">Master<output id="volume-master-value" for="volume-master"></output></label><input id="volume-master" data-volume="master" type="range" min="0" max="100" step="1">
+    <label for="volume-music">Music<output id="volume-music-value" for="volume-music"></output></label><input id="volume-music" data-volume="music" type="range" min="0" max="100" step="1">
+    <label for="volume-ambience">Ambience<output id="volume-ambience-value" for="volume-ambience"></output></label><input id="volume-ambience" data-volume="ambience" type="range" min="0" max="100" step="1">
+    <label for="volume-effects">Sound effects<output id="volume-effects-value" for="volume-effects"></output></label><input id="volume-effects" data-volume="effects" type="range" min="0" max="100" step="1">
+    <button id="audio-mute" aria-pressed="false">Mute</button>
+    <p class="music-credit">Original soundtrack supplied for Stillwater.</p>
+  </section>
   <div id="toast" role="status"></div>
 
   <footer class="dock" data-open="false" aria-label="Building menu">
@@ -104,7 +120,7 @@
               <p><strong>Outdoors:</strong> select Outdoors (7) and click dry ground for a lean-to. Click it again for a tent, then a glamping shelter. Adjacent camp tiles merge into one larger shelter. Choose Campfire, Seating, Picnic table, or Lantern to furnish your campsite yourself. Each piece occupies one dry ground tile. Role (8) assigns a purpose to existing buildings. Right-click removes; Undo restores.</p>
               <p><strong>Terrain:</strong> select Terrain (5), then Raise, Lower, or Level. Level samples a height on the first tap, then applies it. Keep structures on level clearings and leave water at its original height. Undo restores terrain too.</p>
               <p><strong>Build:</strong> click roofs to grow up, walls to grow out. Alt-click to repaint. Right-click to remove.</p>
-              <p><strong>Touch:</strong> drag one finger to orbit and tilt. Drag two fingers to pan; pinch to zoom. A quick tap builds; select Remove to erase. Camera gestures never place blocks.</p>
+              <p><strong>Touch:</strong> drag one finger to orbit and tilt. Drag two fingers to pan; pinch to zoom. Tap a tile to use the selected tool immediately. Hold still briefly for quick actions, including Undo if a tap was a mistake. Dragging and two-finger camera gestures never place blocks.</p>
               <p><strong>Explore:</strong> middle-drag to orbit and tilt, Shift + middle-drag to pan, scroll to zoom. Q / E rotate; R recenters.</p>
               <p><strong>Roofing:</strong> choose a roof color. Cottages have natural moss over a colored roof; log cabins gain weathered ribbed metal; timber lodges gain polished standing-seam panels. Two stories or three rooms create a log cabin; four stories or ten rooms create a timber lodge.</p>
               <p><strong>Lookouts:</strong> stack at least three floors with a narrow one- or two-room summit to create panoramic windows, a telescope, map table, and woodburning stove. Add height to move the lookout upward.</p>
@@ -125,7 +141,13 @@
       <span id="dock-caption" class="dock-caption">Build your town <kbd>B</kbd></span>
     </div>
   </footer>
+  <section id="touch-menu" class="touch-menu" aria-label="Quick actions" hidden>
+    <button id="touch-build" type="button" aria-label="Open build menu"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9 12 2 21 9M4 13v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/></svg><span>Build</span></button>
+    <button id="touch-remove" type="button" aria-label="Remove here"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m5 5 14 14M19 5 5 19"/></svg><span>Remove</span></button>
+    <button id="touch-undo" type="button" aria-label="Undo"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 4-5 5 5 5M3 9h11a6 6 0 0 1 0 12h-4"/></svg><span>Undo</span></button>
+    <button id="touch-cancel" type="button" aria-label="Cancel"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg><span>Cancel</span></button>
+  </section>
   <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="./app.js?v=release-efficiency-1"></script>
 </body>
 </html>

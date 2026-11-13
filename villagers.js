@@ -82,11 +82,12 @@ export function createVillagers(scene,material){
       }
     });
   }
-  function poseRod(m,a,b){const delta=new THREE.Vector3().subVectors(b,a);m.position.copy(a).add(b).multiplyScalar(.5);m.scale.y=delta.length();m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.normalize());}
+  const poseDelta=new THREE.Vector3(),poseUp=new THREE.Vector3(0,1,0),poseHip=new THREE.Vector3(),poseFoot=new THREE.Vector3(),poseKnee=new THREE.Vector3();
+  function poseRod(m,a,b){const delta=poseDelta.subVectors(b,a);m.position.copy(a).add(b).multiplyScalar(.5);m.scale.y=delta.length();m.quaternion.setFromUnitVectors(poseUp,delta.normalize());}
   function pedalPose(a){
     for(let i=0;i<2;i++){
           const {side,upper,lower}=a.pedalLegs[i],phase=a.phase+i*Math.PI;
-          const hip=new THREE.Vector3(side*.045,.40,-.04),foot=new THREE.Vector3(side*.07,.17+Math.cos(phase)*.085,-.04+Math.sin(phase)*.085),knee=new THREE.Vector3(side*.065,.31,.10);
+          const hip=poseHip.set(side*.045,.40,-.04),foot=poseFoot.set(side*.07,.17+Math.cos(phase)*.085,-.04+Math.sin(phase)*.085),knee=poseKnee.set(side*.065,.31,.10);
           poseRod(upper,hip,knee);poseRod(lower,knee,foot);a.cranks[i].position.copy(foot);
         }
   }
@@ -99,7 +100,7 @@ export function createVillagers(scene,material){
       if(!a.route.length){
         const choices=reachable(a.graph,a.id,a.bike?40:6).filter(id=>id!==a.id);
         if(!choices.length)continue;
-        const visits=attractions.filter(id=>id!==a.id&&a.graph.has(id)&&findRoute(a.graph,a.id,id).length);
+        const visits=a.bike?[]:attractions.filter(id=>id!==a.id&&a.graph.has(id)&&findRoute(a.graph,a.id,id).length);
         const options=a.bike?choices.slice(-Math.max(1,Math.ceil(choices.length/3))):visits.length&&a.choices%2===0?visits:choices;
         const destination=options[(a.index*7+a.choices++*11)%options.length];a.route=findRoute(a.graph,a.id,destination).slice(1);
       }

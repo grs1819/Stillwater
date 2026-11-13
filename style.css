@@ -164,3 +164,27 @@ header{top:16px;left:20px;right:20px;gap:12px}
  .tool-icon{width:19px;height:19px}
  .palette{gap:4px}
 }
+
+/* Keep game gestures free of browser selection, image callouts and tap flashes. */
+body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+img{-webkit-user-drag:none}
+button{touch-action:manipulation}
+/* Petals bloom from the held point; transparent gaps keep the town visible. */
+.touch-menu{position:fixed;z-index:10;width:248px;height:232px;pointer-events:none}
+.touch-menu button{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;width:80px;height:80px;min-height:44px;border:1px solid #ffffffe0;border-radius:50%;background:#faf8eff5;color:var(--pine);font:15px Georgia,serif;padding:8px;box-shadow:0 4px 14px #233f3326;pointer-events:auto;animation:petal-bloom .26s cubic-bezier(.2,.8,.25,1.15) both;transform-origin:center}
+.touch-menu svg{width:26px;height:26px;flex-shrink:0}
+#touch-build{left:84px;top:0;--petal-x:0px;--petal-y:156px;animation-delay:25ms}
+#touch-undo{left:0;top:80px;--petal-x:84px;--petal-y:76px;animation-delay:45ms}
+#touch-remove{left:168px;top:80px;--petal-x:-84px;--petal-y:76px;animation-delay:65ms}
+#touch-cancel{left:88px;top:160px;width:72px;height:72px;background:#e1e8d3f5;--petal-x:0px;--petal-y:0px;font-size:13px}
+.touch-menu button:disabled{--petal-opacity:.45;opacity:.45;box-shadow:none}
+.touch-menu button:active:not(:disabled){background:#d7e2ca;box-shadow:0 2px 7px #233f3326}
+@keyframes petal-bloom{from{opacity:0;transform:translate(var(--petal-x),var(--petal-y)) scale(.45)}to{opacity:var(--petal-opacity,1);transform:translate(0,0) scale(1)}}
+@media(prefers-reduced-motion:reduce){.touch-menu button{animation:none}}
+
+
+/* Compact sound settings, outside the building palette. */
+.audio-toggle{position:fixed;right:12px;top:calc(62px + env(safe-area-inset-top));z-index:12;width:44px;height:44px;display:grid;place-items:center;border:1px solid #c3d1b4;border-radius:50%;background:var(--paper);color:var(--pine);cursor:pointer}
+.audio-panel{position:fixed;right:12px;top:calc(112px + env(safe-area-inset-top));z-index:12;width:min(290px,calc(100vw - 24px));max-height:calc(100dvh - 128px - env(safe-area-inset-top));overflow:auto;padding:14px 18px;background:var(--paper);color:var(--pine);border:1px solid #c3d1b4;border-radius:18px;box-shadow:0 4px 18px #233f3326}
+.audio-heading{display:flex;align-items:center;justify-content:space-between;gap:6px}.audio-heading h2{font-family:Georgia,serif;font-size:18px;margin:0}.audio-panel p{font-size:12px;line-height:1.4;margin:4px 0 12px}.audio-panel label{display:flex;justify-content:space-between;font-size:13px}.audio-panel input{display:block;width:100%;height:36px;margin:0 0 5px;accent-color:#52754a;touch-action:pan-y}.audio-panel button{min-height:44px;min-width:44px;border:1px solid #b7cba6;border-radius:10px;background:#e1e8d3;color:var(--pine);font:inherit;padding:6px 12px;cursor:pointer}.audio-panel output{font-variant-numeric:tabular-nums}.audio-panel :focus-visible,.audio-toggle:focus-visible{outline:3px solid #52754a;outline-offset:2px}
+.music-controls{display:flex;justify-content:center;gap:10px;margin:6px 0 10px}.music-controls button{display:grid;place-items:center;width:48px;height:44px;padding:8px}.music-controls svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
