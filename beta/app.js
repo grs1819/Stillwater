@@ -1,3 +1,4 @@
+import {createVillageStore} from './village-store.js';
 import {createAudio,editSound} from './audio.js?v=crossfade-1';
 import {terrainHeight,terrainLevel,levelSite,editTerrain,TERRAIN_STEP,borderHeight} from './terrain.js';
 import * as THREE from 'three';
@@ -94,8 +95,8 @@ for(let x=-22;x<=22;x+=2)for(let z=-22;z<=22;z+=2){
  const rock=new THREE.Mesh(borderRockGeometry,material(h>2?'#929589':'#9da28c'));rock.name='border-boulder';
  rock.position.set(xx,h+size*.3,zz);rock.scale.set(size*1.25,size*.8,size);rock.rotation.set(.15,rand(z+3,x)*Math.PI,.12);rock.castShadow=true;rock.receiveShadow=true;forest.add(rock);
 }
-let state={blocks:{},water:{},peak:0};
-try{const current=localStorage.getItem('stillwater-beta-v2');state=current?normalize(JSON.parse(current)):normalize(JSON.parse(localStorage.getItem('stillwater-beta-v1')),true);}catch{}
+const villages=createVillageStore({storage:{getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)},namespace:'stillwater-beta-v2'});
+let state=villages.active?.data||normalize({});
 let water=state.water,terrain=state.terrain||{},levelTarget=null;
 const waterView=createWaterView(scene,material,box);
 const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
@@ -106,7 +107,11 @@ const villagers=createVillagers(scene,material);
 let targets=[],pickTargets=[];
 const milestones=[{n:3,name:'The first neighbors',text:'Villagers have found their way to Stillwater.'},{n:6,name:'A lighter touch',text:'Silver birch timber unlocked.'},{n:9,name:'Earth & ember',text:'Rust red roof color unlocked.'},{n:12,name:'A town of your own',text:'Red cedar timber and slate blue roof color unlocked.'}];
 function notify(message){$('#toast').textContent=message;$('#toast').classList.add('show');clearTimeout(notify.timer);notify.timer=setTimeout(()=>$('#toast').classList.remove('show'),4200);}
-function save(){try{localStorage.setItem('stillwater-beta-v2',JSON.stringify({blocks,water,terrain,peak}));}catch{notify('Autosave unavailable. Keep this tab open to preserve your town.');}}
+function save(){
+ try{villages.save({blocks,water,terrain,peak});return true;}
+ catch(error){villageMessage(error.message+' Keep this tab open and export your village.');return false;}
+}
+
 function updateUI(){const n=cottageCount(blocks);peak=Math.max(peak,n);const next=milestones.find(m=>peak<m.n);$('#population').textContent=`${(peak>=3?n*2:0)+Object.values(blocks).filter(b=>b.type==='camp').length*2} villagers`;$('#next-title').textContent=next?.name||'Room to keep growing';$('#progress-number').textContent=next?`${n} / ${next.n}`:`${n} cottages`;$('#progress').style.width=`${next?Math.min(100,n/next.n*100):100}%`;$('#next-description').textContent=next?`Grow to ${next.n} cottage plots to make your next discovery.`:'All discoveries unlocked. Make this clearing your own.';$('#discovery-count').textContent=`${milestones.filter(m=>peak>=m.n).length} / 4`;$('#journal').innerHTML=milestones.map(m=>`<div>${peak>=m.n?'✦':'○'} ${m.n} cottages · ${m.name}</div>`).join('');for(const [id,values]of Object.entries({wood:{birch:6,cedar:12},roof:{clay:9,slate:12}}))for(const option of $(`#${id}`).options)if(values[option.value])option.disabled=peak<values[option.value];$('#undo').disabled=!history.length;}
 const ghost=new THREE.Mesh(new THREE.BoxGeometry(1.01,.96,1.01),new THREE.MeshBasicMaterial({color:'#fff5bf',transparent:true,opacity:.28,depthWrite:false}));ghost.visible=false;scene.add(ghost);
 const invisible=new THREE.MeshBasicMaterial({visible:false});
@@ -1002,8 +1007,51 @@ $('#audio-toggle').onclick=()=>setAudioPanel($('#audio-panel').hidden);
 $('#audio-close').onclick=()=>{setAudioPanel(false);$('#audio-toggle').focus();};
 document.addEventListener('pointerdown',e=>{if(!$('#audio-panel').hidden&&!$('#audio-panel').contains(e.target)&&!$('#audio-toggle').contains(e.target))setAudioPanel(false);},true);
 addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#audio-panel').hidden){setAudioPanel(false);$('#audio-toggle').focus();}});
+function villageMessage(message){$('#village-message').textContent=message;notify(message);}
+function currentVillageData(){return {blocks,water,terrain,peak};}
+function loadVillage(slot){
+ if(!slot)return;
+ ({blocks,water,terrain,peak}=slot.data);history=[];levelTarget=null;
+ resetPointerInteraction();updateUI();rebuild();recenter();
+}
+function refreshVillages(){
+ $('#village-message').textContent=villages.error?'Saved villages need recovery. Export the original save before making changes.':'';
+ const active=villages.active,slots=villages.list(),list=$('#village-list');list.replaceChildren();
+ for(const slot of slots){
+  const button=document.createElement('button');button.type='button';button.textContent=slot.name;
+  button.setAttribute('aria-pressed',String(slot.id===active?.id));button.disabled=!!villages.error;
+  button.onclick=()=>{try{if(!save())return;loadVillage(villages.select(slot.id));refreshVillages();}catch(error){villageMessage(error.message);}};
+  list.append(button);
+ }
+ $('#village-name').value=active?.name||'';
+ $('#village-create').disabled=!!villages.error||slots.length>=3;
+ for(const id of ['village-rename','village-delete'])$('#'+id).disabled=!!villages.error||!active;
+ $('#village-import').disabled=!!villages.error||slots.length>=3;
+ $('#village-count').textContent=`${slots.length} / 3 villages`;
+ $('#village-recovery').hidden=!villages.error;
+ $('#village-delete-confirm').hidden=true;
+}
+function downloadVillage(value,name){
+ const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));
+ const link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+$('#village-toggle').onclick=()=>{resetPointerInteraction();setAudioPanel(false);if(dock.dataset.open==='true')setDock(false);refreshVillages();$('#village-dialog').showModal();};
+$('#village-close').onclick=()=>$('#village-dialog').close();
+$('#village-create').onclick=()=>{try{if(!save())return;loadVillage(villages.create('New village'));refreshVillages();}catch(error){villageMessage(error.message);}};
+$('#village-rename').onclick=()=>{try{villages.rename(villages.active.id,$('#village-name').value);refreshVillages();}catch(error){villageMessage(error.message);}};
+$('#village-export').onclick=()=>downloadVillage({version:1,name:villages.active?.name||'Recovered village',data:currentVillageData()},'stillwater-village.json');
+$('#village-recovery').onclick=()=>{const blob=new Blob([villages.recovery()],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='stillwater-original-save.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+$('#village-import').onclick=()=>$('#village-file').click();
+$('#village-file').onchange=async e=>{
+ const file=e.target.files[0];e.target.value='';if(!file)return;
+ try{if(file.size>2_000_000)throw new Error('Village file is too large.');const value=JSON.parse(await file.text());if(value.version!==1)throw new Error('Unsupported village file version.');if(!save())return;loadVillage(villages.create(value.name,value.data));refreshVillages();}catch(error){villageMessage(error.message);}
+};
+$('#village-delete').onclick=()=>{$('#village-delete-label').textContent=`Delete “${villages.active.name}” from this device? Export a copy first if you want to keep it.`;$('#village-delete-confirm').hidden=false;};
+$('#village-delete-cancel').onclick=()=>$('#village-delete-confirm').hidden=true;
+$('#village-delete-yes').onclick=()=>{try{villages.remove(villages.active.id);const slot=villages.active||villages.create('My village');loadVillage(slot);refreshVillages();}catch(error){villageMessage(error.message);}};
 function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);}addEventListener('resize',resize);resize();
-updateUI();rebuild();save();
+updateUI();rebuild();
+if(villages.error)notify('Saved villages need recovery. Open Villages to export a copy; the original save has not been replaced.');
 renderer.setAnimationLoop(t=>{
   controls.update();waterView.animate(t,reducedMotion.matches);
   villagers.animate(t,reducedMotion.matches);
