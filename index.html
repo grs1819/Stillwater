@@ -42,9 +42,12 @@
     <div id="account-controls">
       <div id="account-guest" hidden>
         <p>Sign in to keep up to three villages across devices. Your guest villages stay on this device until you choose to copy one.</p>
+        <form id="account-form">
         <label for="account-email">Email address</label><input id="account-email" type="email" autocomplete="email" required maxlength="254">
-        <button id="account-send" type="button">Email me a code</button>
-        <div id="account-code-row" hidden><label for="account-code">Email code</label><input id="account-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10"><button id="account-verify" type="button">Sign in</button></div>
+          <label for="account-password">Password</label><input id="account-password" type="password" autocomplete="current-password" required maxlength="128">
+          <button id="account-signin" type="submit">Sign in</button><button id="account-signup" type="button">Create account</button>
+          <p>Use at least 8 characters for a new password. Email confirmation is not required during beta.</p>
+        </form>
       </div>
       <div id="account-signed-in" hidden><p id="account-identity"></p><button id="account-sync" type="button">Sync now</button><button id="account-signout" type="button">Sign out</button><button id="account-copy-guest" type="button">Copy guest village into account</button><p>Sign out on a shared device. Account copies remain cached in this browser for offline use.</p></div>
     </div>
@@ -171,6 +174,6 @@
     <button id="touch-cancel" type="button" aria-label="Cancel"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg><span>Cancel</span></button>
   </section>
   <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
-  <script type="module" src="./app.js?v=accounts-1"></script>
+  <script type="module" src="./app.js?v=password-accounts-1"></script>
 </body>
 </html>

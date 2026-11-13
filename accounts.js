@@ -19,8 +19,11 @@ export function createAccounts({namespace,onSession,onError}){
     return session.access_token;
    },
   });},
-  async sendCode(email){const {error}=await client.auth.signInWithOtp({email,options:{shouldCreateUser:true}});if(error)throw error;},
-  async verifyCode(email,token){const {error}=await client.auth.verifyOtp({email,token,type:'email'});if(error)throw error;},
+  async signUp(email,password){
+   const {data,error}=await client.auth.signUp({email,password});if(error)throw error;
+   if(!data.session)throw Error('Email confirmation is still enabled for this beta. Registration needs the project’s Confirm email setting turned off.');
+  },
+  async signIn(email,password){const {error}=await client.auth.signInWithPassword({email,password});if(error)throw error;},
   async signOut(){const {error}=await client.auth.signOut({scope:'local'});if(error)throw error;},
   dispose(){subscription.unsubscribe();client.auth.stopAutoRefresh();},
  };

@@ -47,8 +47,9 @@ replace a newer saved collection.
 
 Supabase project identified; database migration and setup notes are in `backend/`.
 The user confirmed the SQL migration ran. Authentication and revision-checked sync
-are implemented but disabled pending the public client key, real two-user
-authorization tests and email-code delivery/session checks. Local unit and mocked
+are implemented but disabled pending real two-user
+authorization tests and password registration/session checks. The public key is
+configured; email confirmation must be disabled for the beta password flow. Local unit and mocked
 browser checks pass; see `backend/README.md`. Account deletion still needs a managed
 backend flow. Never claim cloud protection for local saves.
 

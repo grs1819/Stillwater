@@ -39,7 +39,7 @@ try{
  const staleDelete=await remove(tokens[0],id,1);assert.equal(staleDelete.ok,false);assert.equal(staleDelete.value.code,'40001');
  const aRows=await request(table,tokens[0]);assert.equal(aRows.value.find(r=>r.id===id).revision,2);
  const bRows=await request(table,tokens[1]);assert.equal(bRows.value.length,1);assert.equal(bRows.value[0].revision,1);
- console.log('PASS real beta database: anonymous denial, two-user isolation, ownership rejection, concurrent slot limit, stale saves/deletes. Email delivery and browser session recovery need separate checks.');
+ console.log('PASS real beta database: anonymous denial, two-user isolation, ownership rejection, concurrent slot limit, stale saves/deletes. Password registration and browser session recovery need separate checks.');
 }finally{
  // Delete only this run's UUIDs, using the current revision; leave unrelated data alone.
  for(const [token,id]of fixtures){const read=await request(table+'&id=eq.'+id,token);if(read.ok&&read.value[0]){const result=await remove(token,id,read.value[0].revision);if(!result.ok)console.error('Fixture cleanup failed for '+id);}}

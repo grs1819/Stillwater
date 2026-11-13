@@ -1077,7 +1077,7 @@ async function accountSession(session){
  if(!save())throw Error('Export this device’s unsaved village before switching accounts.');
  cloud?.stop();cloud=null;
  const store=user?createVillageStore({storage:villageStorage,namespace:saveNamespace,owner:user.id}):createVillageStore({storage:villageStorage,namespace:saveNamespace});
- accountUser=user;villages=store;if(!user)guestVillages=store;loadVillage(store.active);refreshVillages();
+ accountUser=user;villages=store;if(!user)guestVillages=store;$('#account-password').value='';loadVillage(store.active);refreshVillages();
  if(user&&!store.error){
   const job=createCloudSync({store,remote:supabaseRemote(accounts.clientFor(user.id),accounts.environment),onChange:event=>{
    if(villages!==store)return;
@@ -1091,14 +1091,16 @@ async function accountAction(action){
  for(const button of document.querySelectorAll('#account-controls button'))button.disabled=true;
  try{await action();}catch(error){villageMessage(error.message);}finally{accountBusy=false;for(const button of document.querySelectorAll('#account-controls button'))button.disabled=false;refreshAccount();}
 }
-$('#account-send').onclick=()=>accountAction(async()=>{
- const email=$('#account-email');if(!email.reportValidity())return;
- await accounts.sendCode(email.value.trim());$('#account-code-row').hidden=false;villageMessage('Check your email for a sign-in code.');$('#account-code').focus();
-});
-$('#account-verify').onclick=()=>accountAction(async()=>{
- const token=$('#account-code').value.trim();if(!/^\d{6,10}$/.test(token))throw Error('Enter the code from your email.');
- await accounts.verifyCode($('#account-email').value.trim(),token);$('#account-code').value='';
-});
+function passwordAccountAction(create){return accountAction(async()=>{
+ const email=$('#account-email'),password=$('#account-password');
+ if(!email.reportValidity()||!password.reportValidity())return;
+ if(create&&password.value.length<8)throw Error('Use at least 8 characters for your password.');
+ if(create)await accounts.signUp(email.value.trim(),password.value);
+ else await accounts.signIn(email.value.trim(),password.value);
+ password.value='';villageMessage('Signed in. Your guest villages stay separate until you choose to copy one.');
+});}
+$('#account-form').onsubmit=e=>{e.preventDefault();passwordAccountAction(false);};
+$('#account-signup').onclick=()=>passwordAccountAction(true);
 $('#account-signout').onclick=()=>accountAction(async()=>{if(!save())return;await accounts.signOut();});
 $('#account-sync').onclick=()=>cloud?.flush();
 $('#account-copy-guest').onclick=()=>{try{const slot=guestVillages.active;if(!slot)return;loadVillage(villages.create(slot.name,slot.data));cloud?.schedule();refreshVillages();}catch(error){villageMessage(error.message);}};

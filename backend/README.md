@@ -1,8 +1,7 @@
 # Beta accounts and cloud saves
 
 The beta source now contains the account and sync implementation. **Accounts remain
-disabled** in `account-config.js` until real database authorization and email-code
-delivery checks pass. No live game files or deployed database schema were changed
+disabled** in `account-config.js` until real database authorization and password sign-up/sign-in checks pass. No live game files or deployed database schema were changed
 by this increment. GitHub Pages remains the static host.
 
 ## Current service state
@@ -13,15 +12,20 @@ by this increment. GitHub Pages remains the static host.
 - Network verified on November 13, 2026: the project auth health endpoint returned
   HTTP 401 with `No API key found in request`, establishing HTTPS reachability.
   The current environment policy allows the project and `api.supabase.com`.
-- The previous notes said the public key had been provided, but its value is not
-  in this checkout or the current runtime bindings. `publishableKey` remains empty.
-  Set only the **publishable/anon client key**; never a service-role key or password.
-- No authenticated remote tests have been run in this increment. Successful SQL
-  execution alone does not establish row-level security or mail delivery.
+- The provided public publishable key is now configured in `account-config.js`.
+  No service-role key or database password is needed by the frontend.
+- Required auth settings: **Enable Email provider ON**, **Confirm email OFF**.
+  These are separate toggles. Turning off the Email provider disables password
+  registration too. The public `/auth/v1/settings` endpoint reports their state.
+- Latest public settings check: `mailer_autoconfirm:true` (confirmation off),
+  `external.email:false` (Email provider off). Real registration returned HTTP 400,
+  “Email signups are disabled.” Re-enable Email while leaving confirmation off.
+- Authenticated remote checks are blocked by that provider setting. Successful SQL
+  execution alone does not establish row-level security or password registration.
 
 ## Implemented behavior
 
-`accounts.js` uses the official, vendored Supabase JS client for email-code sign-in,
+`accounts.js` uses the official, vendored Supabase JS client for email/password registration and sign-in,
 persisted sessions, refresh, and local sign-out. Auth storage uses the same isolated
 namespace as the local village collections. Requests capture a token only after
 checking its account identity, preventing queued work from using another user's
@@ -51,18 +55,21 @@ Do not present local sign-out as account deletion.
 
 ## Finish configuration and verification
 
-1. Add the public client key to `account-config.js`; leave `enabled:false` until
-   the checks below pass. Use a separate project/configuration before live promotion.
-2. Configure managed email auth and delivery. The email template must include
-   `{{ .Token }}` for the code flow. Supabase's default mail service restricts
-   recipients; configure suitable SMTP before opening sign-up to arbitrary players.
+1. The public key is configured; leave `enabled:false` until the checks below
+   pass. Use a separate project/configuration before live promotion.
+2. Turn off **Confirm email** in Supabase Authentication → Sign In / Providers →
+   Email and save. The user approved unconfirmed email/password accounts for beta.
+   SMTP and email template customization are not needed for this flow. Password
+   reset emails remain restricted without custom SMTP; no reset control is exposed.
+   Never ask users to send passwords in chat. New passwords require at least 8
+   characters in the beta UI and remain subject to the server's password policy.
 3. Use two dedicated **empty beta test accounts** and their short-lived access
    tokens to run `node scripts/check-supabase.mjs`. Supply `STILLWATER_PUBLIC_KEY`,
    `STILLWATER_TEST_TOKEN_A`, and `STILLWATER_TEST_TOKEN_B` through the environment,
    never chat or committed files. The script verifies anonymous denial, cross-user
    reads/writes/deletes, ownership injection, concurrent fourth-slot rejection,
    stale writes/deletes, and cleans only its own generated fixtures.
-4. Verify actual code delivery/sign-in and expired-session recovery in a browser.
+4. Verify actual password registration/sign-in and expired-session recovery in a browser.
    Exercise two devices, offline/reconnect, another-account login, slot switches
    during sync, conflicts, and sign-out with pending changes. Confirm beta storage
    keys and cloud `environment=beta`; no live storage or project access.
@@ -76,7 +83,7 @@ Do not present local sign-out as account deletion.
   `scripts/check-accounts.mjs` with `PLAYWRIGHT_MODULE` set to an available
   Playwright module path if needed. `STILLWATER_URL` and `CHROMIUM_PATH` are optional.
 - The account browser check uses the shipped official SDK with mocked HTTP and
-  test-only configuration. It does **not** verify Supabase authorization or email.
+  test-only configuration. It does **not** verify Supabase authorization or real password registration.
 - Account config, account/sync modules and the vendored SDK are included by
   `scripts/stage-beta.mjs`; the staging script isolates the app's storage namespace.
 

@@ -14,8 +14,8 @@ try{
   if(offline)return route.abort('internetdisconnected');
   const req=route.request(),url=new URL(req.url());let body={};try{body=req.postDataJSON()||{};}catch{}
   const reply=(value,status=200)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(value)});
-  if(url.pathname==='/auth/v1/otp')return reply({});
-  if(url.pathname==='/auth/v1/verify'){
+  if(url.pathname==='/auth/v1/token'||url.pathname==='/auth/v1/signup'){
+   if(body.password==='wrong-password')return reply({error_code:'invalid_credentials',msg:'Invalid login credentials'},400);
    const user=body.email===users.a.email?users.a:users.b;
    return reply({access_token:token(user),refresh_token:'refresh-'+user.id,expires_in:3600,token_type:'bearer',user});
   }
@@ -37,8 +37,10 @@ try{
  await page.route('**/app.js*',async route=>{const response=await route.fetch();await route.fulfill({response,body:await response.text()+'\nrenderer.setAnimationLoop(null);window.probe={get villages(){return villages;},get cloud(){return cloud;},get user(){return accountUser;},edit};'});});
  await page.goto(process.env.STILLWATER_URL||'http://localhost:5193');await page.waitForFunction(()=>window.probe);
  await page.locator('#village-toggle').tap();await page.locator('#village-name').fill('Guest original');await page.locator('#village-rename').tap();
- async function signIn(user){await page.locator('#account-email').fill(user.email);await page.locator('#account-send').tap();await page.locator('#account-code').fill('123456');await page.locator('#account-verify').tap();await page.waitForFunction(id=>probe.user?.id===id,user.id);await page.waitForFunction(()=>probe.cloud?.state.status==='synced');}
- await signIn(users.a);assert.equal(await page.evaluate(()=>probe.villages.list().length),0);assert.equal(rows.size,0);
+ async function signIn(user,create=false){await page.locator('#account-email').fill(user.email);await page.locator('#account-password').fill('test-password-123');await page.locator(create?'#account-signup':'#account-signin').tap();await page.waitForFunction(id=>probe.user?.id===id,user.id);await page.waitForFunction(()=>probe.cloud?.state.status==='synced');}
+ await page.locator('#account-email').fill(users.a.email);await page.locator('#account-password').fill('short');await page.locator('#account-signup').tap();await page.waitForFunction(()=>document.querySelector('#village-message').textContent.includes('8 characters'));assert.equal(await page.evaluate(()=>probe.user),null);
+ await page.locator('#account-password').fill('wrong-password');await page.locator('#account-signin').tap();await page.waitForFunction(()=>document.querySelector('#village-message').textContent.includes('Invalid login credentials'));assert.equal(await page.evaluate(()=>probe.user),null);
+ await signIn(users.a,true);assert.equal(await page.evaluate(()=>probe.villages.list().length),0);assert.equal(rows.size,0);
  await page.locator('#account-copy-guest').tap();await page.waitForFunction(()=>probe.cloud.state.status==='synced');assert.equal(rows.size,1);
  await page.locator('#village-name').fill('Account A');await page.locator('#village-rename').tap();await page.waitForFunction(()=>probe.cloud.state.status==='synced');
  offline=true;await page.locator('#village-name').fill('Offline A');await page.locator('#village-rename').tap();await page.waitForFunction(()=>probe.cloud.state.status==='offline');assert.equal([...rows.values()][0].name,'Account A');
@@ -52,5 +54,5 @@ try{
  await signIn(users.a);assert.equal(await page.evaluate(()=>probe.villages.list().length),2);
  await page.locator('#village-delete').tap();await page.locator('#village-delete-yes').tap();await page.waitForFunction(()=>probe.villages.list().length===1);assert.equal(rows.size,1);
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:'/tmp/stillwater-accounts.png'});assert.deepEqual(errors,[]);
- console.log('PASS mocked account browser flow: official SDK OTP, guest isolation/copy, offline reconnect, conflict copy, logout, other account, deletion, mobile layout. Real RLS/email checks remain required.');
+ console.log('PASS mocked account browser flow: official SDK password signup/login, validation/errors, guest isolation/copy, offline reconnect, conflict copy, logout, other account, deletion, mobile layout. Real authorization and password session checks remain required.');
 }finally{await browser.close();}
