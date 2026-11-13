@@ -1,6 +1,13 @@
-// Original procedural sound design. No recordings, samples or external dependencies.
-// Finished, licensed music is intentionally absent; see assets/audio/README.md.
-export const MUSIC_TRACKS = [];
+// Original procedural effects and user-supplied Stable Audio music.
+// Music provenance and processing: assets/audio/README.md and sources.json.
+export const MUSIC_TRACKS = [
+  {title:'Quiet Horizon',src:'./assets/audio/quiet-horizon.mp3'},
+  {title:'Porchlight',src:'./assets/audio/porchlight.mp3'},
+  {title:'Woodland Folk',src:'./assets/audio/woodland-folk.mp3'},
+  {title:'Cozy Chillhop',src:'./assets/audio/cozy-chillhop.mp3'},
+  {title:'Appalachian Morning',src:'./assets/audio/appalachian-morning.mp3'},
+  {title:'Forest Drift',src:'./assets/audio/forest-drift.mp3'},
+];
 export const AUDIO_DEFAULTS = {master:.65,music:.45,ambience:.35,effects:.55,muted:false};
 export function audioPreferences(value={}) {
   const result={...AUDIO_DEFAULTS};
@@ -29,7 +36,7 @@ export function createAudio({storageKey='stillwater-audio-v1',tracks=MUSIC_TRACK
   let sources=[],voices=new Set(),nextAmbient=0,nextMusic=0,trackIndex=-1,loading=false,trackFinished=true,failed=new Set(),lastEffect=-1;
   let environment='woodlands';
   const random=(a,b)=>a+Math.random()*(b-a);
-  const status=()=>onStatus(!ctx?'Sound starts when you interact.':!active?'Sound paused.':prefs.muted?'Sound muted.':!tracks.length?'Woodland sounds on. Music coming soon.':failed.size===tracks.length?'Music unavailable. Woodland sounds on.':'Sound on.');
+  const status=()=>onStatus(!ctx?'Sound starts when you interact.':!active?'Sound paused.':prefs.muted?'Sound muted.':!tracks.length?'Woodland sounds on. Music coming soon.':failed.size===tracks.length?'Music unavailable. Woodland sounds on.':media&&!media.paused&&tracks[trackIndex]?`Playing: ${tracks[trackIndex].title}`:'Woodland sounds on.');
   function ramp(param,value,seconds=.12){const now=ctx.currentTime;param.cancelScheduledValues(now);param.setTargetAtTime(value,now,Math.max(.01,seconds/3));}
   function apply(){if(!ctx)return; ramp(master.gain,active&&!prefs.muted?prefs.master:0);for(const key of ['music','ambience','effects'])ramp(buses[key].gain,prefs[key]);if(!prefs.music||!prefs.master||prefs.muted)media?.pause();status();}
   function setPreferences(patch){prefs=audioPreferences({...prefs,...patch});try{localStorage.setItem(storageKey,JSON.stringify(prefs));}catch{}apply();status();}
@@ -44,7 +51,8 @@ export function createAudio({storageKey='stillwater-audio-v1',tracks=MUSIC_TRACK
       media=new Audio();media.preload='none';media.loop=false;
       musicGain=ctx.createGain();musicGain.gain.value=0;
       ctx.createMediaElementSource(media).connect(musicGain);musicGain.connect(buses.music);
-      media.addEventListener('ended',()=>{loading=false;trackFinished=true;nextMusic=ctx.currentTime+random(8,16);});
+      media.addEventListener('ended',()=>{loading=false;trackFinished=true;nextMusic=ctx.currentTime+random(8,16);status();});
+      media.addEventListener('playing',status);
       media.addEventListener('error',()=>{if(trackIndex>=0)failed.add(trackIndex);loading=false;trackFinished=true;nextMusic=ctx.currentTime+10;status();});
     }
     nextAmbient=ctx.currentTime+random(3,6);nextMusic=ctx.currentTime+2;

@@ -1,0 +1,72 @@
+{
+  "provenance": "User supplied six original WAV files created with Stable Audio. User confirmed commercial use permission in chat. No independent account/plan verification performed.",
+  "processing": "Two-pass loudness normalization targeting -18 LUFS, true peak -1.5 dBTP; stereo 44.1 kHz 160 kbps MP3. Original WAVs retained outside the deployed repository.",
+  "tracks": [
+    {
+      "title": "Quiet Horizon",
+      "file": "quiet-horizon.mp3",
+      "source_file": "Original instrumental ambient post-rock soundtrack for a pea.wav",
+      "source_sha256": "4f0f0f9c2e80847dd9d62f23d919a0bb6bdfe8dc5b590ed8442aabee3404ef18",
+      "mp3_sha256": "702ce06d42108f76e65b748a318c981d2765e492306eea729d4001fcdffca4e2",
+      "bytes": 1201249,
+      "duration_seconds": 60,
+      "loudness_LUFS": -18.44,
+      "true_peak_dBTP": -2.08
+    },
+    {
+      "title": "Porchlight",
+      "file": "porchlight.mp3",
+      "source_file": "Original instrumental cozy lo-fi soundtrack.wav",
+      "source_sha256": "e8a2f3c50d70450dd0a23be2d3bb48e13bac23b8a8e2d93423d095b92e97f5fd",
+      "mp3_sha256": "db7ffc4f51ce08d24c8ebbb7668f17f5cf04726158ab767b2cf232e7b2694384",
+      "bytes": 1201246,
+      "duration_seconds": 60,
+      "loudness_LUFS": -18.44,
+      "true_peak_dBTP": -4.24
+    },
+    {
+      "title": "Woodland Folk",
+      "file": "woodland-folk.mp3",
+      "source_file": "Original instrumental indie folk soundtrack for a cozy woodl.wav",
+      "source_sha256": "bfa139a97a049ae8225000bc7addb15d08faabe6e8d2ecf84f94ce358084f450",
+      "mp3_sha256": "1430e68a07643058f145f53b19895a828321b01cabbebc76a8113267a326ffee",
+      "bytes": 1201249,
+      "duration_seconds": 60,
+      "loudness_LUFS": -18.45,
+      "true_peak_dBTP": -4.06
+    },
+    {
+      "title": "Cozy Chillhop",
+      "file": "cozy-chillhop.mp3",
+      "source_file": "Original instrumental cozy lo-fi chillhop.wav",
+      "source_sha256": "dfb670359572ee6602352eca20ef01e3a622c4dbfa2b4f6f1c4e04367cba5044",
+      "mp3_sha256": "7e4185cc39c172a15fdd755f397f8331b7386de0649dfa2d0db4f1a32ea49676",
+      "bytes": 1201249,
+      "duration_seconds": 60,
+      "loudness_LUFS": -18.45,
+      "true_peak_dBTP": -4.35
+    },
+    {
+      "title": "Appalachian Morning",
+      "file": "appalachian-morning.mp3",
+      "source_file": "Original instrumental modern Appalachian folk soundtrack for.wav",
+      "source_sha256": "b9b6056f34df1219c7e86590e7502c9cd6b7bf94b37d1d9efaea359b0b8dd08b",
+      "mp3_sha256": "a9c6e6761e045d79c8b8d16ab168c3a4e1ec145aeb38884eab0645a960b3d885",
+      "bytes": 1201255,
+      "duration_seconds": 60,
+      "loudness_LUFS": -18.45,
+      "true_peak_dBTP": -3.34
+    },
+    {
+      "title": "Forest Drift",
+      "file": "forest-drift.mp3",
+      "source_file": "Original instrumental alternative lo-fi chillhop soundtrack.wav",
+      "source_sha256": "55133a1cf0da0a7d87c9fdbbea3e9d52a27dc85d9df69eeb67fd75579271ba0f",
+      "mp3_sha256": "4dd6b0ae17232569719d9d16baf53bd18f5bfac55328414cea798f48053ff2bb",
+      "bytes": 1201248,
+      "duration_seconds": 60,
+      "loudness_LUFS": -18.44,
+      "true_peak_dBTP": -4.34
+    }
+  ]
+}
