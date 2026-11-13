@@ -30,7 +30,7 @@ or repetitive grinding.
   Keep camera/gesture state and unconfirmed previews out of village saves.
 - Retain a local-first save path. Design accounts/cloud sync separately, including
   offline behavior, conflict resolution, ownership and deletion. Local slots are
-  implemented; authentication and remote synchronization are pending backend setup.
+  implemented; authentication and remote synchronization are implemented behind a disabled configuration flag pending real service checks.
 - Future management rules should be separate from rendering and switchable by mode.
   Reuse roles, connected buildings, navigation and existing unlock data where appropriate.
 - Give audio its own lifecycle and volume buses, started by user interaction.
@@ -46,9 +46,11 @@ untouched as recovery copies. Stale tabs and failed storage writes cannot silent
 replace a newer saved collection.
 
 Supabase project identified; database migration and setup notes are in `backend/`.
-Authentication and cloud synchronization are not enabled or remotely tested yet.
-Next: apply and verify ownership policies, then connect sign-in and revision-checked
-sync with explicit conflict recovery. Never claim cloud protection for local saves.
+The user confirmed the SQL migration ran. Authentication and revision-checked sync
+are implemented but disabled pending the public client key, real two-user
+authorization tests and email-code delivery/session checks. Local unit and mocked
+browser checks pass; see `backend/README.md`. Account deletion still needs a managed
+backend flow. Never claim cloud protection for local saves.
 
 ## Validation
 Run `npm run check` and `npm test`. The beta source also includes

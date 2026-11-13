@@ -64,6 +64,19 @@ export function createVillageStore({storage,namespace='mosswood-v2',owner='guest
     acknowledge(id,localRevision,cloudRevision){
       return update(id,s=>{s.cloudRevision=cloudRevision;if(s.revision===localRevision)s.dirty=false;});
     },
+    setConflict(id,row){return update(id,s=>{s.conflict=true;s.remoteConflict=clone(row);});},
+    resolveLocal(id){return update(id,s=>{
+      if(!s.conflict)throw new Error('No conflict to resolve.');
+      s.cloudRevision=s.remoteConflict?.revision||0;s.conflict=false;delete s.remoteConflict;s.revision++;s.dirty=true;
+    });},
+    resolveRemote(id){
+      const slot=this.list().find(s=>s.id===id);
+      if(!slot?.conflict)throw new Error('No conflict to resolve.');
+      if(!slot.remoteConflict){this.remove(id);return null;}
+      // One atomic local write: never clear dirty data before validating the replacement.
+      const row=slot.remoteConflict;
+      return update(id,s=>{Object.assign(s,{name:villageName(row.name),data:validateVillage(row.data),cloudRevision:row.revision,updatedAt:row.updated_at,revision:s.revision+1,dirty:false,conflict:false});delete s.remoteConflict;});
+    },
     acceptRemote(row){
       const next=clone(collection),existing=next.slots.find(s=>s.id===row.id);
       if(existing?.dirty)throw new Error('This device has unsynced changes. Choose which version to keep first.');

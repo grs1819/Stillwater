@@ -1,3 +1,5 @@
+import {createAccounts} from './accounts.js';
+import {createCloudSync,supabaseRemote} from './cloud-sync.js';
 import {createVillageStore} from './village-store.js';
 import {createAudio,editSound} from './audio.js?v=crossfade-1';
 import {terrainHeight,terrainLevel,levelSite,editTerrain,TERRAIN_STEP,borderHeight} from './terrain.js';
@@ -95,7 +97,10 @@ for(let x=-22;x<=22;x+=2)for(let z=-22;z<=22;z+=2){
  const rock=new THREE.Mesh(borderRockGeometry,material(h>2?'#929589':'#9da28c'));rock.name='border-boulder';
  rock.position.set(xx,h+size*.3,zz);rock.scale.set(size*1.25,size*.8,size);rock.rotation.set(.15,rand(z+3,x)*Math.PI,.12);rock.castShadow=true;rock.receiveShadow=true;forest.add(rock);
 }
-const villages=createVillageStore({storage:{getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)},namespace:'mosswood-v2'});
+const villageStorage={getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)};
+const saveNamespace='mosswood-v2';
+let guestVillages=createVillageStore({storage:villageStorage,namespace:saveNamespace});
+let villages=guestVillages,cloud=null,accountUser=null,accounts=null,accountBusy=false,deletionBusy=false;
 let state=villages.active?.data||normalize({});
 let water=state.water,terrain=state.terrain||{},levelTarget=null;
 const waterView=createWaterView(scene,material,box);
@@ -108,7 +113,7 @@ let targets=[],pickTargets=[];
 const milestones=[{n:3,name:'The first neighbors',text:'Villagers have found their way to Stillwater.'},{n:6,name:'A lighter touch',text:'Silver birch timber unlocked.'},{n:9,name:'Earth & ember',text:'Rust red roof color unlocked.'},{n:12,name:'A town of your own',text:'Red cedar timber and slate blue roof color unlocked.'}];
 function notify(message){$('#toast').textContent=message;$('#toast').classList.add('show');clearTimeout(notify.timer);notify.timer=setTimeout(()=>$('#toast').classList.remove('show'),4200);}
 function save(){
- try{villages.save({blocks,water,terrain,peak});return true;}
+ try{const data={blocks,water,terrain,peak};if(!villages.active){if(JSON.stringify(data)===JSON.stringify(normalize({})))return true;villages.create('My village',data);}else if(JSON.stringify(data)!==JSON.stringify(villages.active.data))villages.save(data);cloud?.schedule();return true;}
  catch(error){villageMessage(error.message+' Keep this tab open and export your village.');return false;}
 }
 
@@ -1010,15 +1015,14 @@ addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#audio-panel').hidden){s
 function villageMessage(message){$('#village-message').textContent=message;notify(message);}
 function currentVillageData(){return {blocks,water,terrain,peak};}
 function loadVillage(slot){
- if(!slot)return;
- ({blocks,water,terrain,peak}=slot.data);history=[];levelTarget=null;
+ ({blocks,water,terrain,peak}=slot?.data||normalize({}));history=[];levelTarget=null;
  resetPointerInteraction();updateUI();rebuild();recenter();
 }
 function refreshVillages(){
  $('#village-message').textContent=villages.error?'Saved villages need recovery. Export the original save before making changes.':'';
  const active=villages.active,slots=villages.list(),list=$('#village-list');list.replaceChildren();
  for(const slot of slots){
-  const button=document.createElement('button');button.type='button';button.textContent=slot.name;
+  const button=document.createElement('button');button.type='button';button.textContent=slot.name+(slot.conflict?' · Choose version':'');
   button.setAttribute('aria-pressed',String(slot.id===active?.id));button.disabled=!!villages.error;
   button.onclick=()=>{try{if(!save())return;loadVillage(villages.select(slot.id));refreshVillages();}catch(error){villageMessage(error.message);}};
   list.append(button);
@@ -1030,25 +1034,92 @@ function refreshVillages(){
  $('#village-count').textContent=`${slots.length} / 3 villages`;
  $('#village-recovery').hidden=!villages.error;
  $('#village-delete-confirm').hidden=true;
+ $('#village-delete-yes').disabled=deletionBusy;
+ refreshAccount();
 }
 function downloadVillage(value,name){
  const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));
  const link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
-$('#village-toggle').onclick=()=>{resetPointerInteraction();setAudioPanel(false);if(dock.dataset.open==='true')setDock(false);refreshVillages();$('#village-dialog').showModal();};
+$('#village-toggle').onclick=()=>{resetPointerInteraction();setAudioPanel(false);if(dock.dataset.open==='true')setDock(false);refreshVillages();$('#village-dialog').showModal();cloud?.flush();};
 $('#village-close').onclick=()=>$('#village-dialog').close();
-$('#village-create').onclick=()=>{try{if(!save())return;loadVillage(villages.create('New village'));refreshVillages();}catch(error){villageMessage(error.message);}};
-$('#village-rename').onclick=()=>{try{villages.rename(villages.active.id,$('#village-name').value);refreshVillages();}catch(error){villageMessage(error.message);}};
+$('#village-create').onclick=()=>{try{if(!save())return;loadVillage(villages.create('New village'));cloud?.schedule();refreshVillages();}catch(error){villageMessage(error.message);}};
+$('#village-rename').onclick=()=>{try{villages.rename(villages.active.id,$('#village-name').value);cloud?.schedule();refreshVillages();}catch(error){villageMessage(error.message);}};
 $('#village-export').onclick=()=>downloadVillage({version:1,name:villages.active?.name||'Recovered village',data:currentVillageData()},'stillwater-village.json');
 $('#village-recovery').onclick=()=>{const blob=new Blob([villages.recovery()],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='stillwater-original-save.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 $('#village-import').onclick=()=>$('#village-file').click();
 $('#village-file').onchange=async e=>{
  const file=e.target.files[0];e.target.value='';if(!file)return;
- try{if(file.size>2_000_000)throw new Error('Village file is too large.');const value=JSON.parse(await file.text());if(value.version!==1)throw new Error('Unsupported village file version.');if(!save())return;loadVillage(villages.create(value.name,value.data));refreshVillages();}catch(error){villageMessage(error.message);}
+ try{if(file.size>2_000_000)throw new Error('Village file is too large.');const value=JSON.parse(await file.text());if(value.version!==1)throw new Error('Unsupported village file version.');if(!save())return;loadVillage(villages.create(value.name,value.data));cloud?.schedule();refreshVillages();}catch(error){villageMessage(error.message);}
 };
-$('#village-delete').onclick=()=>{$('#village-delete-label').textContent=`Delete “${villages.active.name}” from this device? Export a copy first if you want to keep it.`;$('#village-delete-confirm').hidden=false;};
+$('#village-delete').onclick=()=>{$('#village-delete-label').textContent=`Delete “${villages.active.name}” ${accountUser?'from your account and this device':'from this device'}? Export a copy first if you want to keep it.`;$('#village-delete-confirm').hidden=false;};
 $('#village-delete-cancel').onclick=()=>$('#village-delete-confirm').hidden=true;
-$('#village-delete-yes').onclick=()=>{try{villages.remove(villages.active.id);const slot=villages.active||villages.create('My village');loadVillage(slot);refreshVillages();}catch(error){villageMessage(error.message);}};
+$('#village-delete-yes').onclick=async()=>{if(deletionBusy)return;deletionBusy=true;const store=villages,job=cloud;try{
+ $('#village-delete-yes').disabled=true;
+ if(job){if(!await job.remove(store.active.id))return;}else store.remove(store.active.id);
+ if(villages!==store)return;
+ const slot=store.active||(!accountUser?store.create('My village'):null);loadVillage(slot);refreshVillages();
+ }catch(error){if(villages===store)villageMessage(error.message);}finally{deletionBusy=false;$('#village-delete-yes').disabled=false;}};
+
+function refreshAccount(){
+ $('#account-guest').hidden=!!accountUser||!accounts;
+ $('#account-signed-in').hidden=!accountUser;
+ $('#account-identity').textContent=accountUser?.email||'';
+ $('#account-status').textContent=accountUser?(cloud?.state.message||'Saved on this device.'): 'Saved on this device.';
+ $('#account-copy-guest').disabled=!!villages.error||villages.list().length>=3||!guestVillages.active;
+ const slot=villages.active;$('#cloud-conflict').hidden=!slot?.conflict;
+ $('#cloud-copy-local').disabled=villages.list().length>=3;
+ $('#cloud-conflict-text').textContent=slot?.remoteConflict?'Another device changed this village. Choose which version to use, or copy this device’s version into a free slot.':'Another device deleted this village. Keep this device’s version or accept the deletion.';
+}
+async function accountSession(session){
+ const user=session?.user||null;if(user?.id===accountUser?.id){if(user)await cloud?.flush();return;}
+ // Preserve edits before changing collections; late old-user jobs are fenced by stop().
+ if(!save())throw Error('Export this device’s unsaved village before switching accounts.');
+ cloud?.stop();cloud=null;
+ const store=user?createVillageStore({storage:villageStorage,namespace:saveNamespace,owner:user.id}):createVillageStore({storage:villageStorage,namespace:saveNamespace});
+ accountUser=user;villages=store;if(!user)guestVillages=store;loadVillage(store.active);refreshVillages();
+ if(user&&!store.error){
+  const job=createCloudSync({store,remote:supabaseRemote(accounts.clientFor(user.id),accounts.environment),onChange:event=>{
+   if(villages!==store)return;
+   if(event.reload)loadVillage(store.active);
+   refreshVillages();
+  }});cloud=job;await job.flush();
+ }
+}
+async function accountAction(action){
+ if(accountBusy)return;accountBusy=true;
+ for(const button of document.querySelectorAll('#account-controls button'))button.disabled=true;
+ try{await action();}catch(error){villageMessage(error.message);}finally{accountBusy=false;for(const button of document.querySelectorAll('#account-controls button'))button.disabled=false;refreshAccount();}
+}
+$('#account-send').onclick=()=>accountAction(async()=>{
+ const email=$('#account-email');if(!email.reportValidity())return;
+ await accounts.sendCode(email.value.trim());$('#account-code-row').hidden=false;villageMessage('Check your email for a sign-in code.');$('#account-code').focus();
+});
+$('#account-verify').onclick=()=>accountAction(async()=>{
+ const token=$('#account-code').value.trim();if(!/^\d{6,10}$/.test(token))throw Error('Enter the code from your email.');
+ await accounts.verifyCode($('#account-email').value.trim(),token);$('#account-code').value='';
+});
+$('#account-signout').onclick=()=>accountAction(async()=>{if(!save())return;await accounts.signOut();});
+$('#account-sync').onclick=()=>cloud?.flush();
+$('#account-copy-guest').onclick=()=>{try{const slot=guestVillages.active;if(!slot)return;loadVillage(villages.create(slot.name,slot.data));cloud?.schedule();refreshVillages();}catch(error){villageMessage(error.message);}};
+function resolveConflict(choice){try{
+ const slot=villages.active;if(!slot?.conflict)return;
+ // Persist current scene edits before resolving; the conflict snapshot stays available.
+ if(!save())return;
+ if(choice==='copy'){villages.create(slot.name+' copy',currentVillageData());villages.resolveRemote(slot.id);}
+ else if(choice==='local')villages.resolveLocal(slot.id);
+ else villages.resolveRemote(slot.id);
+ loadVillage(villages.active);refreshVillages();cloud?.schedule();
+ }catch(error){villageMessage(error.message);}}
+$('#cloud-use-local').onclick=()=>resolveConflict('local');
+$('#cloud-use-remote').onclick=()=>resolveConflict('remote');
+$('#cloud-copy-local').onclick=()=>resolveConflict('copy');
+accounts=createAccounts({namespace:saveNamespace,onSession:accountSession,onError:error=>villageMessage(error.message)});
+refreshAccount();
+addEventListener('online',()=>cloud?.flush());
+addEventListener('focus',()=>cloud?.flush());
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)cloud?.flush();});
+
 function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);}addEventListener('resize',resize);resize();
 updateUI();rebuild();
 if(villages.error)notify('Saved villages need recovery. Open Villages to export a copy; the original save has not been replaced.');
