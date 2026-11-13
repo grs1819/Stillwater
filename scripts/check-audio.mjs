@@ -11,7 +11,7 @@ try{
   window.AudioContext=class extends Original{constructor(...args){super(...args);window.audioContext=this;window.audioSources=0;window.audioAnalyser=this.createAnalyser();audioAnalyser.connect(this.destination);const dest=this.destination;const originalGain=this.createGain.bind(this);this.createGain=()=>{const gain=originalGain(),connect=gain.connect.bind(gain);gain.connect=(target,...rest)=>connect(target===dest?audioAnalyser:target,...rest);return gain;};}createBufferSource(){window.audioSources++;return super.createBufferSource();}createOscillator(){window.audioSources++;return super.createOscillator();}};
  });
  await page.route('**/audio.js*',async route=>{const response=await route.fetch();await route.fulfill({response,body:(await response.text()).replace(/export const MUSIC_TRACKS = \[[\s\S]*?\];/,'export const MUSIC_TRACKS = [];')});});
- await page.route('**/app.js*',async route=>{const response=await route.fetch();await route.fulfill({response,body:await response.text()+`\nrenderer.setAnimationLoop(null);renderer.render(scene,camera);window.audioProbe={sound,edit,undo,stageTouchEdit,getState:()=>({blocks,water,terrain}),selectTool};`});});
+ await page.route('**/app.js*',async route=>{const response=await route.fetch();await route.fulfill({response,body:await response.text()+`\nrenderer.setAnimationLoop(null);renderer.render(scene,camera);window.audioProbe={sound,edit,undo,getState:()=>({blocks,water,terrain}),selectTool};`});});
  await page.goto(url);await page.waitForFunction(()=>window.audioProbe);
  assert.equal(await page.evaluate(()=>!!window.audioContext),false,'No autoplay context');
  await page.locator('#audio-toggle').tap();await page.waitForFunction(()=>window.audioContext?.state==='running');
@@ -42,10 +42,9 @@ try{
  await page.locator('#audio-close').tap();
  const hit={position:[0,0,0],normal:[0,1,0],ground:true};
  await page.waitForTimeout(150);
- await page.evaluate(hit=>audioProbe.stageTouchEdit(hit),hit);
- assert.equal(await page.locator('#touch-confirm').isVisible(),true);
- const before=await page.evaluate(()=>audioSources);await page.waitForTimeout(200);assert.equal(await page.evaluate(()=>audioSources),before,'Preview is silent');
- await page.locator('#touch-apply').tap();assert.ok(await page.evaluate(n=>audioSources>n,before),'Confirmed edit sounds');
+ const before=await page.evaluate(()=>audioSources);
+ await page.evaluate(hit=>audioProbe.edit(hit),hit);
+ assert.ok(await page.evaluate(n=>audioSources>n,before),'Successful edit sounds');
  assert.ok(await page.evaluate(()=>audioProbe.getState().blocks['0,0,0']));
  await page.waitForTimeout(100);await page.evaluate(()=>audioProbe.undo());assert.equal(await page.evaluate(()=>audioProbe.getState().blocks['0,0,0']),undefined);
  await page.setViewportSize({width:320,height:568});await page.reload();await page.waitForFunction(()=>window.audioProbe);await page.locator('#audio-toggle').tap();
@@ -54,5 +53,5 @@ try{
  await page.screenshot({path:'/tmp/stillwater-audio-mobile.png'});
  assert.equal(requests.some(r=>/\.(mp3|ogg|wav)(\?|$)/.test(r)),false,'Empty music manifest makes no asset requests');
  assert.deepEqual(errors,[]);
- console.log('PASS audio: user activation, bounded sound output, volume/mute persistence, focus suspension/resume, silent previews, confirmed edits/Undo, mobile panel, no missing music requests.');
+ console.log('PASS audio: user activation, bounded sound output, volume/mute persistence, focus suspension/resume, immediate edits/Undo, mobile panel, no missing music requests.');
 }finally{await browser.close();}

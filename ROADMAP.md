@@ -38,8 +38,8 @@ or repetitive grinding.
   `/beta/`, preserve isolated beta saves, and promote only with explicit approval.
 
 ## Current increment: mobile controls
-Touch selects a visible preview; explicit confirmation applies placement, changes
-or removal. Camera gestures cancel pending edits. Preserve desktop clicks, existing
+A single touch tap immediately applies the selected tool. Long press opens quick
+actions including Undo. Camera gestures and cancelled touches never commit edits. Preserve desktop clicks, existing
 saves and the long-press petal menu. Check touch sequences, cancellations, small
 screens, keyboard accessibility and save/reload before beta publication.
 

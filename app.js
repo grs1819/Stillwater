@@ -109,7 +109,6 @@ function notify(message){$('#toast').textContent=message;$('#toast').classList.a
 function save(){try{localStorage.setItem('mosswood-v2',JSON.stringify({blocks,water,terrain,peak}));}catch{notify('Autosave unavailable. Keep this tab open to preserve your town.');}}
 function updateUI(){const n=cottageCount(blocks);peak=Math.max(peak,n);const next=milestones.find(m=>peak<m.n);$('#population').textContent=`${(peak>=3?n*2:0)+Object.values(blocks).filter(b=>b.type==='camp').length*2} villagers`;$('#next-title').textContent=next?.name||'Room to keep growing';$('#progress-number').textContent=next?`${n} / ${next.n}`:`${n} cottages`;$('#progress').style.width=`${next?Math.min(100,n/next.n*100):100}%`;$('#next-description').textContent=next?`Grow to ${next.n} cottage plots to make your next discovery.`:'All discoveries unlocked. Make this clearing your own.';$('#discovery-count').textContent=`${milestones.filter(m=>peak>=m.n).length} / 4`;$('#journal').innerHTML=milestones.map(m=>`<div>${peak>=m.n?'✦':'○'} ${m.n} cottages · ${m.name}</div>`).join('');for(const [id,values]of Object.entries({wood:{birch:6,cedar:12},roof:{clay:9,slate:12}}))for(const option of $(`#${id}`).options)if(values[option.value])option.disabled=peak<values[option.value];$('#undo').disabled=!history.length;}
 const ghost=new THREE.Mesh(new THREE.BoxGeometry(1.01,.96,1.01),new THREE.MeshBasicMaterial({color:'#fff5bf',transparent:true,opacity:.28,depthWrite:false}));ghost.visible=false;scene.add(ghost);
-const touchOutline=new THREE.LineSegments(new THREE.EdgesGeometry(ghost.geometry),new THREE.LineBasicMaterial({color:'#52754a'}));touchOutline.visible=false;ghost.add(touchOutline);
 const invisible=new THREE.MeshBasicMaterial({visible:false});
 const timber={oak:'#c6a171',birch:'#ded4b3',cedar:'#b77d61'};
 const roofs={moss:'#718a58',clay:'#b87755',slate:'#718b94'};
@@ -763,13 +762,13 @@ function rebuild(){
 }
 function commit(next,nextWater=water,nextTerrain=terrain){
   const cue=editSound({blocks,water,terrain},{blocks:next,water:nextWater,terrain:nextTerrain});
-  clearTouchPreview();
+  clearPreview();
   history.push(JSON.stringify({blocks,water,terrain}));if(history.length>80)history.shift();
   const before=peak;blocks=next;water=nextWater;terrain=nextTerrain;updateUI();rebuild();save();
   sound.effect(cue);
   for(const m of milestones)if(before<m.n&&peak>=m.n){notify(`✧ ${m.text}`);sound.effect('unlock');}
 }
-function undo(){clearTouchPreview();if(!history.length)return;const previous=JSON.parse(history.pop());blocks=previous.blocks;water=previous.water;terrain=previous.terrain||{};updateUI();rebuild();save();sound.effect('undo');ghost.visible=false;}
+function undo(){clearPreview();if(!history.length)return;const previous=JSON.parse(history.pop());blocks=previous.blocks;water=previous.water;terrain=previous.terrain||{};updateUI();rebuild();save();sound.effect('undo');ghost.visible=false;}
 function destination(hit){
   if(!hit)return null;
   const [x,y,z]=hit.position;
@@ -830,56 +829,14 @@ function preview(hit){
   ghost.material.color.set(tool==='water'?'#77c9ce':tool==='erase'?'#d78469':'#fff5bf');
   ghost.scale.set(1,tool==='water'?.065:tool==='balcony'?.16:1,1);
 }
-// Touch edits are transient selections until the player explicitly confirms.
-let pendingTouch=null;
-const touchConfirm=$('#touch-confirm');
-function clearTouchPreview(){pendingTouch=null;touchConfirm.hidden=true;ghost.visible=false;touchOutline.visible=false;}
-function stageTouchEdit(hit,actionTool=tool){
- clearTouchPreview();if(!hit)return;
- const previousTool=tool;tool=actionTool;
- let point=destination(hit),label='Build here',valid=false,thin=false;
- const [x,y,z]=hit.position,block=blocks[key(x,y,z)],wet=water[waterKey(x,z)];
- if(actionTool==='erase'){point=hit.position;valid=!hit.ground?!!block:!!wet;label='Remove here';thin=hit.ground;}
- else if(terrainMode()){
-  point=[x,0,z];thin=true;
-  valid=terrainAction==='level'&&levelTarget===null||!!editTerrain(terrain,blocks,water,x,z,terrainAction,levelTarget);
-  label=terrainAction==='level'?(levelTarget===null?'Use this height':'Level land'):terrainAction==='raise'?'Raise land':'Lower land';
- }else if(actionTool==='water'){
-  thin=true;valid=levelSite(terrain,x,z)&&terrainHeight(terrain,x,z)===0&&!!waterEdit(water,blocks,x,z,$('#water-kind').value,LIMIT);label='Add water';
- }else if(actionTool==='role'){point=hit.position;valid=block?.type==='house';label='Apply building role';}
- else if(actionTool==='camp'&&block?.type==='camp'&&!hit.ground){point=hit.position;valid=$('#camp-piece').value==='shelter'&&!!upgradeCamp(blocks,key(...point));label='Upgrade shelter';}
- else if(actionTool==='balcony'&&block?.type==='balcony'&&!hit.ground){point=hit.position;valid=true;thin=true;label='Update porch';}
- else if(actionTool==='path'&&block?.type==='path'&&!hit.ground){point=hit.position;valid=true;thin=true;label='Change path surface';}
- else if(point){
-  const type=actionTool==='camp'&&$('#camp-piece').value!=='shelter'?'campProp':actionTool;
-  valid=canPlace(blocks,...point,type,water)&&(!['house','balcony','camp'].includes(actionTool)||levelSite(terrain,point[0],point[2]));
-  thin=['path','balcony'].includes(actionTool);
-  label=actionTool==='tree'?'Plant tree':actionTool==='camp'?'Place outdoor item':'Build here';
- }
- tool=previousTool;
- if(!valid||!point){notify('Choose a valid tile. Structures need level ground; water needs flat, low land.');return;}
- pendingTouch={hit:structuredClone(hit),tool:actionTool};
- // Collapse the dock to expose the selected tile; retain the selected tool/options.
- setDock(false);
- const elevation=terrainHeight(terrain,point[0],point[2]),height=thin?.12:actionTool==='erase'&&block?.type==='tree'?(treeHeights[block.species]||2.5):1;
- ghost.position.set(point[0],point[1]+elevation+height/2,point[2]);ghost.scale.set(1,height,1);
- ghost.material.color.set(actionTool==='erase'?'#d78469':'#fff5bf');ghost.visible=true;touchOutline.visible=true;touchOutline.material.color.set(actionTool==='erase'?'#a34e35':'#52754a');
- $('#touch-confirm-label').textContent=label;
- $('#touch-apply').textContent=actionTool==='erase'?'Remove':label==='Build here'?'Build':'Apply';
- touchConfirm.hidden=false;
-}
-$('#touch-apply').onclick=()=>{
- const pending=pendingTouch;if(!pending)return;clearTouchPreview();
- const previousTool=tool;tool=pending.tool;try{edit(pending.hit);}finally{tool=previousTool;}
-};
-$('#touch-discard').onclick=clearTouchPreview;
+function clearPreview(){ghost.visible=false;}
 const touchContacts=new Map();
 let holdTimer=null,heldHit=null;
 const touchMenu=$('#touch-menu');
 function cancelHold(){clearTimeout(holdTimer);holdTimer=null;}
 function closeTouchMenu(){if(!touchMenu.hidden)sound.effect('menuClose');touchMenu.hidden=true;heldHit=null;}
 function openTouchMenu(hit,x,y){
- clearTouchPreview();heldHit=hit;touchMenu.hidden=false;sound.effect('menuOpen');
+ clearPreview();heldHit=hit;touchMenu.hidden=false;sound.effect('menuOpen');
  $('#touch-remove').disabled=!hit||hit.ground&&!water[waterKey(hit.position[0],hit.position[2])];
  $('#touch-undo').disabled=!history.length;
  touchMenu.style.left=`${Math.max(8,Math.min(innerWidth-256,x-124))}px`;
@@ -887,15 +844,15 @@ function openTouchMenu(hit,x,y){
  ghost.visible=false;
 }
 $('#touch-build').onclick=()=>{closeTouchMenu();setDock(true);};
-$('#touch-remove').onclick=()=>{const hit=heldHit;closeTouchMenu();stageTouchEdit(hit,'erase');};
+$('#touch-remove').onclick=()=>{const hit=heldHit;closeTouchMenu();const previousTool=tool;tool='erase';try{edit(hit);}finally{tool=previousTool;}};
 $('#touch-undo').onclick=()=>{closeTouchMenu();undo();};
 $('#touch-cancel').onclick=closeTouchMenu;
 document.addEventListener('pointerdown',e=>{if(e.target!==canvas&&!touchMenu.contains(e.target)){cancelHold();closeTouchMenu();}},true);
-addEventListener('resize',()=>{cancelHold();closeTouchMenu();clearTouchPreview();});
-addEventListener('keydown',e=>{if(e.key==='Escape'){cancelHold();closeTouchMenu();clearTouchPreview();}});
+addEventListener('resize',()=>{cancelHold();closeTouchMenu();clearPreview();});
+addEventListener('keydown',e=>{if(e.key==='Escape'){cancelHold();closeTouchMenu();clearPreview();}});
 
 function resetPointerInteraction(){
-  cancelHold();closeTouchMenu();clearTouchPreview();touchContacts.clear();
+  cancelHold();closeTouchMenu();clearPreview();touchContacts.clear();
   const id=pointerDown?.pointerId;
   pointerDown=null;ghost.visible=false;canvas.style.cursor='';
   if(id!==undefined&&canvas.hasPointerCapture(id))canvas.releasePointerCapture(id);
@@ -908,7 +865,7 @@ canvas.addEventListener('pointerdown',e=>{
   if(e.pointerType!=='touch'&&pointerDown?.pointerId===e.pointerId)resetPointerInteraction();
 },{capture:true});
 canvas.addEventListener('pointerdown',e=>{
-  clearTouchPreview();
+  clearPreview();
   if(e.pointerType==='touch'){
     const dismissed=!touchMenu.hidden;cancelHold();closeTouchMenu();
     const contact={x:e.clientX,y:e.clientY,moved:touchContacts.size>0||dismissed,time:performance.now(),held:false};
@@ -939,26 +896,27 @@ canvas.addEventListener('pointerup',e=>{
   if(e.pointerType==='touch'){
     const contact=touchContacts.get(e.pointerId);
     cancelHold();touchContacts.delete(e.pointerId);
-    if(contact&&!contact.held&&!contact.moved&&Math.hypot(e.clientX-contact.x,e.clientY-contact.y)<=8&&performance.now()-contact.time<500)stageTouchEdit(pick(e));
+    if(contact&&!contact.held&&!contact.moved&&Math.hypot(e.clientX-contact.x,e.clientY-contact.y)<=8&&performance.now()-contact.time<500){edit(pick(e));if(dock.dataset.open==='true')setDock(false);}
+    ghost.visible=false;
     return;
   }
   if(pointerDown?.pointerId!==e.pointerId)return;
   if(!pointerDown.moved&&pointerDown.button!==1)edit(pick(e),pointerDown.button===2,pointerDown.alt);
   pointerDown=null;ghost.visible=false;canvas.style.cursor='';
 });
-canvas.addEventListener('pointercancel',e=>{cancelHold();closeTouchMenu();clearTouchPreview();touchContacts.delete(e.pointerId);for(const contact of touchContacts.values())contact.moved=true;pointerDown=null;ghost.visible=false;canvas.style.cursor='';});
+canvas.addEventListener('pointercancel',e=>{cancelHold();closeTouchMenu();clearPreview();touchContacts.delete(e.pointerId);for(const contact of touchContacts.values())contact.moved=true;pointerDown=null;ghost.visible=false;canvas.style.cursor='';});
 canvas.addEventListener('lostpointercapture',e=>{if(e.pointerType==='touch'){if(touchContacts.has(e.pointerId))resetPointerInteraction();return;}if(pointerDown?.pointerId===e.pointerId)resetPointerInteraction();});
 addEventListener('blur',resetPointerInteraction);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)resetPointerInteraction();});
 // Suppress native middle-button autoscroll on browsers that still dispatch it.
 canvas.addEventListener('mousedown',e=>{if(e.button===1)e.preventDefault();});
 canvas.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault();});
-canvas.addEventListener('pointerleave',()=>{if(!pendingTouch)ghost.visible=false;});
+canvas.addEventListener('pointerleave',()=>{ghost.visible=false;});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
-function selectTool(value){clearTouchPreview();cancelHold();closeTouchMenu();tool=value;$('#water-options').hidden=value!=='water';$('#building-materials').hidden=value!=='house';$('#role-options').hidden=value!=='role';$('#tree-options').hidden=value!=='tree';$('#path-options').hidden=value!=='path';$('#deck-options').hidden=value!=='balcony';$('#camp-options').hidden=value!=='camp';$('#terrain-options').hidden=value!=='terrain';document.querySelectorAll('[data-tool]').forEach(b=>{b.classList.toggle('active',b.dataset.tool===tool);b.setAttribute('aria-pressed',String(b.dataset.tool===tool));});ghost.visible=false;}
+function selectTool(value){clearPreview();cancelHold();closeTouchMenu();tool=value;$('#water-options').hidden=value!=='water';$('#building-materials').hidden=value!=='house';$('#role-options').hidden=value!=='role';$('#tree-options').hidden=value!=='tree';$('#path-options').hidden=value!=='path';$('#deck-options').hidden=value!=='balcony';$('#camp-options').hidden=value!=='camp';$('#terrain-options').hidden=value!=='terrain';document.querySelectorAll('[data-tool]').forEach(b=>{b.classList.toggle('active',b.dataset.tool===tool);b.setAttribute('aria-pressed',String(b.dataset.tool===tool));});ghost.visible=false;}
 document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>selectTool(b.dataset.tool));
 $('#undo').onclick=undo;
-document.querySelectorAll('.dock select').forEach(select=>select.addEventListener('change',clearTouchPreview));
+document.querySelectorAll('.dock select').forEach(select=>select.addEventListener('change',clearPreview));
 const dock=$('.dock'), dockMenu=$('#build-menu'), dockToggle=$('#dock-toggle');
 function setHelp(open){
   if($('#help-panel').hidden===open)sound.effect(open?'menuOpen':'menuClose');
@@ -975,7 +933,7 @@ function setTasks(open){
 function setDock(open){
   if((dock.dataset.open==='true')!==open)sound.effect(open?'menuOpen':'menuClose');
   if(open)setAudioPanel(false);
-  if(open)clearTouchPreview();
+  if(open)clearPreview();
   if(!open && dockMenu.contains(document.activeElement))dockToggle.focus();
   dock.dataset.open=String(open);
   dockMenu.inert=!open;
@@ -993,12 +951,12 @@ function setDock(open){
 dockToggle.addEventListener('animationend',()=>dockToggle.classList.remove('animating'));
 dockToggle.onclick=()=>setDock(dock.dataset.open!=='true');
 document.querySelectorAll('[data-terrain]').forEach(button=>button.onclick=()=>{
- clearTouchPreview();terrainAction=button.dataset.terrain;levelTarget=null;ghost.visible=false;
+ clearPreview();terrainAction=button.dataset.terrain;levelTarget=null;ghost.visible=false;
  document.querySelectorAll('[data-terrain]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));
  $('#terrain-level').textContent=terrainAction==='level'?'Tap land to sample its height, then tap to level.':'Tap land once per height step.';
  $('#sample-height').hidden=terrainAction!=='level';
 });
-$('#sample-height').onclick=()=>{clearTouchPreview();levelTarget=null;$('#terrain-level').textContent='Tap land to sample a new height.';};
+$('#sample-height').onclick=()=>{clearPreview();levelTarget=null;$('#terrain-level').textContent='Tap land to sample a new height.';};
 $('#help-toggle').onclick=()=>setHelp($('#help-panel').hidden);
 $('#tasks-toggle').onclick=()=>setTasks($('#tasks-panel').hidden);
 addEventListener('keydown',e=>{
@@ -1008,15 +966,15 @@ addEventListener('keydown',e=>{
   if(e.key.toLowerCase()==='r')recenter();
 });
 function orbit(delta){const offset=camera.position.clone().sub(controls.target);offset.applyAxisAngle(new THREE.Vector3(0,1,0),delta);camera.position.copy(controls.target).add(offset);controls.update();}
-// Input starts cancel selections; residual damping must not erase a fresh preview.
-controls.addEventListener('change',()=>{if(!pendingTouch)ghost.visible=false;});
-canvas.addEventListener('wheel',()=>{clearTouchPreview();cancelHold();closeTouchMenu();},{passive:true});
-addEventListener('keydown',e=>{if(!['SELECT','INPUT','TEXTAREA'].includes(document.activeElement.tagName)&&['q','e','r'].includes(e.key.toLowerCase())){clearTouchPreview();cancelHold();closeTouchMenu();}});
+// Camera movement clears the desktop hover preview.
+controls.addEventListener('change',()=>{ghost.visible=false;});
+canvas.addEventListener('wheel',()=>{clearPreview();cancelHold();closeTouchMenu();},{passive:true});
+addEventListener('keydown',e=>{if(!['SELECT','INPUT','TEXTAREA'].includes(document.activeElement.tagName)&&['q','e','r'].includes(e.key.toLowerCase())){clearPreview();cancelHold();closeTouchMenu();}});
 addEventListener('keydown',e=>{if(['SELECT','INPUT'].includes(document.activeElement.tagName))return;if(['1','2','3','4','5','6','7','8','9'].includes(e.key))selectTool(['house','balcony','path','water','terrain','tree','camp','role','erase'][Number(e.key)-1]);if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();undo();}if(e.key.toLowerCase()==='q')orbit(Math.PI/8);if(e.key.toLowerCase()==='e')orbit(-Math.PI/8);});
 function setAudioPanel(open){
  const panel=$('#audio-panel');if(panel.hidden===open)sound.effect(open?'menuOpen':'menuClose');
  panel.hidden=!open;$('#audio-toggle').setAttribute('aria-expanded',String(open));
- if(open){clearTouchPreview();cancelHold();closeTouchMenu();if(dock.dataset.open==='true')setDock(false);}
+ if(open){clearPreview();cancelHold();closeTouchMenu();if(dock.dataset.open==='true')setDock(false);}
 }
 for(const input of document.querySelectorAll('[data-volume]')){
  const key=input.dataset.volume;input.value=Math.round(sound.preferences[key]*100);
