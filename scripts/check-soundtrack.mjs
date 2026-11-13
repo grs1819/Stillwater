@@ -21,9 +21,11 @@ try{
    await page.evaluate(()=>soundtrack.setPreferences({music:.45}));await page.waitForFunction(()=>!trackPlayer.paused);
   }
   console.log('Decoded and playing:',track.title);
+  for(let repeat=1;repeat<=3;repeat++){
   // Seek to each real file ending to validate the full playlist without a six-minute wait.
   await page.evaluate(()=>{trackPlayer.currentTime=trackPlayer.duration-.25;});await page.waitForFunction(()=>trackPlayer.ended);
-  await page.waitForTimeout(1000);assert.ok(await page.evaluate(()=>trackPlayer.paused),'Quiet interval after track');
+  if(repeat<3){await page.waitForFunction(()=>!trackPlayer.paused&&trackPlayer.currentTime<2);assert.ok(await page.evaluate(src=>trackPlayer.src.endsWith(src),track.src.slice(1)));}
+  }
  }
  await page.waitForFunction(()=>trackPlayer.src.endsWith('quiet-horizon.mp3')&&!trackPlayer.paused,{},{timeout:25000});
  await page.evaluate(()=>window.dispatchEvent(new Event('blur')));assert.equal(await page.evaluate(()=>trackPlayer.paused),true);

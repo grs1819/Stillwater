@@ -43,9 +43,10 @@ the repository; keep the user's masters as the source archive. No music is gener
 at runtime. No vocals, instruments or musical content were added during processing.
 
 The player loads one track at a time only after user interaction, fades in over
-3 seconds/out over 4 seconds, rotates all six with 8–16 second quiet gaps, and pauses
-when hidden, muted or music volume is zero. A complete cycle contains six minutes
-of music plus gaps. These are short supplied tracks, not extended 3–5 minute versions.
+0.8 seconds/out over 1.2 seconds, repeats each track three times with a 0.25-second
+replay gap, then advances with a 1-second gap (plus up to 0.5 seconds scheduler latency), and pauses
+when hidden, muted or music volume is zero. A complete cycle contains 18 minutes
+of music plus short gaps. These are short supplied tracks, not extended 3–5 minute versions.
 The existing music slider controls them independently of ambience/effects.
 
 ## Controls / lifecycle

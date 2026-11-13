@@ -33,7 +33,7 @@ export const SOUNDSCAPES={woodlands:{pause:[6,13],events:['bird','bird','cricket
 export function createAudio({storageKey='stillwater-audio-v1',tracks=MUSIC_TRACKS,getListener=()=>({x:0,y:20,z:20}),onStatus=()=>{}}={}){
   let prefs={...AUDIO_DEFAULTS};try{prefs=audioPreferences(JSON.parse(localStorage.getItem(storageKey)));}catch{}
   let ctx,master,buses,noise,timer,media,musicGain,unlocked=false,active=!document.hidden,musicBlocked=false;
-  let sources=[],voices=new Set(),nextAmbient=0,nextMusic=0,trackIndex=-1,loading=false,trackFinished=true,failed=new Set(),lastEffect=-1;
+  let sources=[],voices=new Set(),nextAmbient=0,nextMusic=0,trackIndex=-1,completedPlays=0,loading=false,trackFinished=true,failed=new Set(),lastEffect=-1;
   let environment='woodlands';
   const random=(a,b)=>a+Math.random()*(b-a);
   const status=()=>onStatus(!ctx?'Click or tap anywhere for sound.':!active?'Sound paused.':prefs.muted?'Sound muted.':!prefs.master?'Master volume is zero.':!prefs.music?'Music volume is zero.':ctx.state!=='running'?'Tap again to enable audio.':!tracks.length?'Woodland sounds on. Music coming soon.':musicBlocked?'Click or tap anywhere to start music.':failed.size===tracks.length?'Music unavailable. Try refreshing beta.':media&&!media.paused&&tracks[trackIndex]?`Playing: ${tracks[trackIndex].title}`:'Woodland sounds on.');
@@ -54,7 +54,7 @@ export function createAudio({storageKey='stillwater-audio-v1',tracks=MUSIC_TRACK
       media=new Audio();media.preload='none';media.loop=false;
       musicGain=ctx.createGain();musicGain.gain.value=0;
       ctx.createMediaElementSource(media).connect(musicGain);musicGain.connect(buses.music);
-      media.addEventListener('ended',()=>{loading=false;trackFinished=true;nextMusic=ctx.currentTime+random(8,16);status();});
+      media.addEventListener('ended',()=>{loading=false;trackFinished=true;completedPlays++;nextMusic=ctx.currentTime+(completedPlays<3?.25:1);status();});
       media.addEventListener('playing',status);
       media.addEventListener('error',()=>{if(trackIndex>=0)failed.add(trackIndex);loading=false;trackFinished=true;nextMusic=ctx.currentTime+10;status();});
     }
@@ -134,8 +134,12 @@ export function createAudio({storageKey='stillwater-audio-v1',tracks=MUSIC_TRACK
   function playMusic(){
     if(loading||!media||failed.size===tracks.length)return;
     if(trackFinished){
-      do{trackIndex=(trackIndex+1)%tracks.length;}while(failed.has(trackIndex));
-      media.src=new URL(tracks[trackIndex].src,import.meta.url).href;
+      if(trackIndex>=0&&completedPlays<3&&!failed.has(trackIndex)){
+        media.currentTime=0; // Reuse the loaded track; only completed plays count.
+      }else{
+        do{trackIndex=(trackIndex+1)%tracks.length;}while(failed.has(trackIndex));
+        completedPlays=0;media.src=new URL(tracks[trackIndex].src,import.meta.url).href;
+      }
       musicGain.gain.value=0;trackFinished=false;
     }
     loading=true;
@@ -153,7 +157,7 @@ export function createAudio({storageKey='stillwater-audio-v1',tracks=MUSIC_TRACK
     if(prefs.ambience&&now>=nextAmbient){const config=SOUNDSCAPES[environment],event=config.events[Math.floor(Math.random()*config.events.length)];const duration=ambience(event);nextAmbient=now+duration+random(...config.pause);}
     if(prefs.music&&media){
       if(media.paused&&!musicBlocked&&now>=nextMusic)playMusic();
-      if(!media.paused){const remaining=Number.isFinite(media.duration)?media.duration-media.currentTime:10;const fade=Math.min(1,media.currentTime/3,remaining/4);ramp(musicGain.gain,Math.max(0,fade)*.65,.5);}
+      if(!media.paused){const remaining=Number.isFinite(media.duration)?media.duration-media.currentTime:10;const fade=Math.min(1,media.currentTime/.8,remaining/1.2);ramp(musicGain.gain,Math.max(0,fade)*.65,.5);}
     }
   }
   function setActive(value){

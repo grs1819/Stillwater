@@ -17,10 +17,24 @@ try{
  await page.evaluate(()=>engine.setPreferences({muted:true}));assert.equal(await page.evaluate(()=>musicElement.paused),true);
  const paused=await page.evaluate(()=>musicElement.currentTime);await page.waitForTimeout(300);assert.ok(Math.abs(await page.evaluate(()=>musicElement.currentTime)-paused)<.05);
  await page.evaluate(()=>engine.setPreferences({muted:false}));await page.waitForFunction(()=>!musicElement.paused);
- await page.waitForFunction(()=>musicElement.ended);const ended=Date.now();
- await page.waitForTimeout(1000);assert.ok(await page.evaluate(()=>musicElement.src.endsWith('test-one.wav')&&musicElement.paused));
- await page.waitForFunction(()=>musicElement.src.endsWith('test-two.wav')&&!musicElement.paused,{},{timeout:20000});assert.ok(Date.now()-ended>=7500,'Quiet gap between tracks');
+ await page.evaluate(()=>{window.ends=0;musicElement.addEventListener('ended',()=>window.ends++);});
+ for(let count=1;count<=3;count++){
+  await page.evaluate(()=>{musicElement.currentTime=musicElement.duration-.2;});
+  await page.waitForFunction(n=>window.ends>=n,count);const ended=Date.now();
+  if(count<3){
+   await page.waitForFunction(()=>!musicElement.paused&&musicElement.currentTime<2);
+   assert.ok(await page.evaluate(()=>musicElement.src.endsWith('test-one.wav')),'Repeat same track');
+   assert.ok(Date.now()-ended<2500,'Short repeat gap');
+   // Pausing a repeat must not advance the completion count.
+   await page.evaluate(()=>engine.setPreferences({music:0}));
+   await page.evaluate(()=>engine.setPreferences({music:.45}));
+   await page.waitForFunction(()=>!musicElement.paused);
+  }else{
+   await page.waitForFunction(()=>musicElement.src.endsWith('test-two.wav')&&!musicElement.paused);
+   assert.ok(Date.now()-ended<3000,'Short transition to next track');
+  }
+ }
  await page.evaluate(()=>window.dispatchEvent(new Event('blur')));assert.equal(await page.evaluate(()=>musicElement.paused),true);
  await page.evaluate(()=>engine.dispose());assert.deepEqual(errors,[]);
- console.log('PASS music: streaming, mute/resume, natural end, quiet gap, playlist rotation, inactive pause, cleanup. Test tones not shipped.');
+ console.log('PASS music: streaming, mute/resume, three completed plays, short gaps, playlist rotation, inactive pause, cleanup. Test tones not shipped.');
 }finally{await browser.close();}
