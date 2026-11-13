@@ -77,3 +77,11 @@ running audio context and checks recovery on a later real click.
 The first click/tap can be on a menu; construction is not required. Saved mute
 and zero-volume preferences remain respected. `check-anywhere-audio.mjs` checks
 first menu activation on desktop and touch without changing the village.
+
+### iPhone output activation
+Every accepted gesture may retry AudioContext.resume(), even if an earlier resume
+promise is still pending. Touchend is included explicitly. A suspended/interrupted
+context reports “Tap again to enable audio” instead of claiming music is playing.
+Where supported, Safari's Audio Session API requests the playback category.
+`check-iphone-audio.mjs` simulates the pending-resume failure in Chromium; it is not
+a substitute for a physical iPhone/Safari listening test.

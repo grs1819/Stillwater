@@ -32,15 +32,18 @@ export function editSound(before,after){
 export const SOUNDSCAPES={woodlands:{pause:[6,13],events:['bird','bird','cricket','cicada','wind','water','fire']}};
 export function createAudio({storageKey='stillwater-audio-v1',tracks=MUSIC_TRACKS,getListener=()=>({x:0,y:20,z:20}),onStatus=()=>{}}={}){
   let prefs={...AUDIO_DEFAULTS};try{prefs=audioPreferences(JSON.parse(localStorage.getItem(storageKey)));}catch{}
-  let ctx,master,buses,noise,timer,media,musicGain,unlocked=false,active=!document.hidden,starting=false,musicBlocked=false;
+  let ctx,master,buses,noise,timer,media,musicGain,unlocked=false,active=!document.hidden,musicBlocked=false;
   let sources=[],voices=new Set(),nextAmbient=0,nextMusic=0,trackIndex=-1,loading=false,trackFinished=true,failed=new Set(),lastEffect=-1;
   let environment='woodlands';
   const random=(a,b)=>a+Math.random()*(b-a);
-  const status=()=>onStatus(!ctx?'Click or tap anywhere for sound.':!active?'Sound paused.':prefs.muted?'Sound muted.':!prefs.master?'Master volume is zero.':!prefs.music?'Music volume is zero.':!tracks.length?'Woodland sounds on. Music coming soon.':musicBlocked?'Click or tap anywhere to start music.':failed.size===tracks.length?'Music unavailable. Try refreshing beta.':media&&!media.paused&&tracks[trackIndex]?`Playing: ${tracks[trackIndex].title}`:'Woodland sounds on.');
+  const status=()=>onStatus(!ctx?'Click or tap anywhere for sound.':!active?'Sound paused.':prefs.muted?'Sound muted.':!prefs.master?'Master volume is zero.':!prefs.music?'Music volume is zero.':ctx.state!=='running'?'Tap again to enable audio.':!tracks.length?'Woodland sounds on. Music coming soon.':musicBlocked?'Click or tap anywhere to start music.':failed.size===tracks.length?'Music unavailable. Try refreshing beta.':media&&!media.paused&&tracks[trackIndex]?`Playing: ${tracks[trackIndex].title}`:'Woodland sounds on.');
   function ramp(param,value,seconds=.12){const now=ctx.currentTime;param.cancelScheduledValues(now);param.setTargetAtTime(value,now,Math.max(.01,seconds/3));}
   function apply(){if(!ctx)return; ramp(master.gain,active&&!prefs.muted?prefs.master:0);for(const key of ['music','ambience','effects'])ramp(buses[key].gain,prefs[key]);if(!prefs.music||!prefs.master||prefs.muted)media?.pause();status();}
   function setPreferences(patch){prefs=audioPreferences({...prefs,...patch});try{localStorage.setItem(storageKey,JSON.stringify(prefs));}catch{}apply();status();}
   function init(){
+    // Supported by newer Safari: use the media playback route rather than
+    // ambient audio, which can be silenced by the iPhone's Silent Mode.
+    try{if(navigator.audioSession)navigator.audioSession.type='playback';}catch{}
     const AudioContext=window.AudioContext||window.webkitAudioContext;if(!AudioContext){onStatus('Audio is unavailable in this browser.');return false;}
     ctx=new AudioContext();master=ctx.createGain();master.gain.value=0;master.connect(ctx.destination);buses={};
     for(const key of ['music','ambience','effects']){buses[key]=ctx.createGain();buses[key].gain.value=prefs[key];buses[key].connect(master);}
@@ -55,6 +58,7 @@ export function createAudio({storageKey='stillwater-audio-v1',tracks=MUSIC_TRACK
       media.addEventListener('playing',status);
       media.addEventListener('error',()=>{if(trackIndex>=0)failed.add(trackIndex);loading=false;trackFinished=true;nextMusic=ctx.currentTime+10;status();});
     }
+    ctx.addEventListener('statechange',status);
     nextAmbient=ctx.currentTime+random(3,6);nextMusic=ctx.currentTime+2;
     timer=setInterval(tick,500);apply();return true;
   }
@@ -67,11 +71,11 @@ export function createAudio({storageKey='stillwater-audio-v1',tracks=MUSIC_TRACK
       // Touch browsers may grant media activation only on pointerup/click.
       if(media&&media.paused&&!prefs.muted&&prefs.master&&prefs.music&&(trackIndex<0||musicBlocked||ctx.currentTime>=nextMusic))playMusic();
       if(unlocked&&ctx.state==='running'){apply();return;}
-      // Keep gesture playback above this guard: a touch release can arrive while
-      // the initial AudioContext resume is still pending.
-      if(starting)return;
-      starting=true;
-      try{await ctx.resume();unlocked=true;apply();}finally{starting=false;}
+      // Safari may leave resume() pending when pointerdown is not an accepted
+      // gesture. Every later touchend/click must be allowed to retry resume().
+      await ctx.resume();unlocked=true;
+      if(!active||document.hidden)await ctx.suspend();
+      apply();
     }catch{onStatus('Click or tap anywhere to enable audio.');}
   }
   // Soft attack/release, restrained bandwidth, bounded voices; no endless loops.
@@ -158,10 +162,10 @@ export function createAudio({storageKey='stillwater-audio-v1',tracks=MUSIC_TRACK
     else if(unlocked)unlock();
   }
   const onVisibility=()=>setActive(!document.hidden),onBlur=()=>setActive(false),onFocus=()=>{if(!document.hidden)setActive(true);};
-  document.addEventListener('pointerdown',unlock,{capture:true});document.addEventListener('pointerup',unlock,{capture:true});document.addEventListener('click',unlock,{capture:true});document.addEventListener('keydown',unlock,{capture:true});
+  document.addEventListener('pointerdown',unlock,{capture:true});document.addEventListener('pointerup',unlock,{capture:true});document.addEventListener('touchend',unlock,{capture:true,passive:true});document.addEventListener('click',unlock,{capture:true});document.addEventListener('keydown',unlock,{capture:true});
   document.addEventListener('visibilitychange',onVisibility);window.addEventListener('blur',onBlur);window.addEventListener('focus',onFocus);window.addEventListener('pagehide',onBlur);window.addEventListener('pageshow',onFocus);
   return {effect,unlock,setPreferences,get preferences(){return {...prefs};},
     setWorld(value){sources=value;},setEnvironment(value){if(SOUNDSCAPES[value])environment=value;},
-    dispose(){clearInterval(timer);media?.pause();for(const item of voices)item.source.stop();ctx?.close();document.removeEventListener('pointerdown',unlock,true);document.removeEventListener('pointerup',unlock,true);document.removeEventListener('click',unlock,true);document.removeEventListener('keydown',unlock,true);document.removeEventListener('visibilitychange',onVisibility);window.removeEventListener('blur',onBlur);window.removeEventListener('focus',onFocus);window.removeEventListener('pagehide',onBlur);window.removeEventListener('pageshow',onFocus);},
+    dispose(){clearInterval(timer);media?.pause();for(const item of voices)item.source.stop();ctx?.close();document.removeEventListener('pointerdown',unlock,true);document.removeEventListener('pointerup',unlock,true);document.removeEventListener('touchend',unlock,true);document.removeEventListener('click',unlock,true);document.removeEventListener('keydown',unlock,true);document.removeEventListener('visibilitychange',onVisibility);window.removeEventListener('blur',onBlur);window.removeEventListener('focus',onFocus);window.removeEventListener('pagehide',onBlur);window.removeEventListener('pageshow',onFocus);},
   };
 }
