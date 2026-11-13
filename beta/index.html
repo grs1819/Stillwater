@@ -18,6 +18,16 @@
     </div>
     <div class="status"><span class="sun" aria-hidden="true">☀</span> <span id="population">0 villagers</span></div>
   </header>
+  <button id="audio-toggle" class="audio-toggle" aria-label="Sound settings" title="Sound settings" aria-expanded="false" aria-controls="audio-panel"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4 5 9H2v6h3l6 5ZM15 8c3 2 3 6 0 8M18 5c5 4 5 10 0 14"/></svg></button>
+  <section id="audio-panel" class="audio-panel" aria-label="Sound settings" hidden>
+    <div class="audio-heading"><h2>Sounds of Stillwater</h2><button id="audio-close" aria-label="Close sound settings">×</button></div>
+    <p id="audio-status" role="status">Sound starts when you interact.</p>
+    <label for="volume-master">Master<output id="volume-master-value" for="volume-master"></output></label><input id="volume-master" data-volume="master" type="range" min="0" max="100" step="1">
+    <label for="volume-music">Music<output id="volume-music-value" for="volume-music"></output></label><input id="volume-music" data-volume="music" type="range" min="0" max="100" step="1">
+    <label for="volume-ambience">Ambience<output id="volume-ambience-value" for="volume-ambience"></output></label><input id="volume-ambience" data-volume="ambience" type="range" min="0" max="100" step="1">
+    <label for="volume-effects">Sound effects<output id="volume-effects-value" for="volume-effects"></output></label><input id="volume-effects" data-volume="effects" type="range" min="0" max="100" step="1">
+    <button id="audio-mute" aria-pressed="false">Mute</button>
+  </section>
   <div id="toast" role="status"></div>
 
   <footer class="dock" data-open="false" aria-label="Building menu">

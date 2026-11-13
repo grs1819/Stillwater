@@ -1,3 +1,4 @@
+import {createAudio,editSound} from './audio.js';
 import {terrainHeight,terrainLevel,levelSite,editTerrain,TERRAIN_STEP,borderHeight} from './terrain.js';
 import * as THREE from 'three';
 import {OrbitControls} from './vendor/OrbitControls.js';
@@ -30,6 +31,7 @@ controls.mouseButtons={LEFT:null,MIDDLE:THREE.MOUSE.ROTATE,RIGHT:null};
 controls.touches={ONE:THREE.TOUCH.ROTATE,TWO:THREE.TOUCH.DOLLY_PAN};
 function recenter(){camera.position.set(19,20,25);controls.target.set(0,0,0);controls.update();}
 recenter();
+const sound=createAudio({storageKey:'stillwater-beta-v2-audio',getListener:()=>camera.position,onStatus:message=>{$('#audio-status').textContent=message;}});
 scene.add(new THREE.HemisphereLight('#dcecf1','#829273',1.65));
 const sunlight=new THREE.DirectionalLight('#fff0d6',2.7);
 sunlight.position.set(-12,25,12);sunlight.castShadow=true;
@@ -756,15 +758,18 @@ function rebuild(){
     for(const child of buildings.children.slice(childStart)){if(b.type==='path'&&!levelSite(terrain,x,z))drapePath(child);else child.position.y+=elevation;}
   }
   buildings.updateMatrixWorld(true);clearing.updateMatrixWorld(true);
+  sound.setWorld([...Object.entries(water).map(([k,kind])=>{const [x,z]=k.split(',').map(Number);return {x,y:0,z,kind};}),...Object.entries(blocks).filter(([,b])=>b.type==='campProp'&&b.kind==='fire').map(([k])=>{const [x,y,z]=k.split(',').map(Number);return {x,y:y+terrainHeight(terrain,x,z),z,kind:'fire'};})]);
   villagers.rebuild(blocks,water,peak>=3,terrain);
 }
 function commit(next,nextWater=water,nextTerrain=terrain){
+  const cue=editSound({blocks,water,terrain},{blocks:next,water:nextWater,terrain:nextTerrain});
   clearTouchPreview();
   history.push(JSON.stringify({blocks,water,terrain}));if(history.length>80)history.shift();
   const before=peak;blocks=next;water=nextWater;terrain=nextTerrain;updateUI();rebuild();save();
-  for(const m of milestones)if(before<m.n&&peak>=m.n)notify(`✧ ${m.text}`);
+  sound.effect(cue);
+  for(const m of milestones)if(before<m.n&&peak>=m.n){notify(`✧ ${m.text}`);sound.effect('unlock');}
 }
-function undo(){clearTouchPreview();if(!history.length)return;const previous=JSON.parse(history.pop());blocks=previous.blocks;water=previous.water;terrain=previous.terrain||{};updateUI();rebuild();save();ghost.visible=false;}
+function undo(){clearTouchPreview();if(!history.length)return;const previous=JSON.parse(history.pop());blocks=previous.blocks;water=previous.water;terrain=previous.terrain||{};updateUI();rebuild();save();sound.effect('undo');ghost.visible=false;}
 function destination(hit){
   if(!hit)return null;
   const [x,y,z]=hit.position;
@@ -872,9 +877,9 @@ const touchContacts=new Map();
 let holdTimer=null,heldHit=null;
 const touchMenu=$('#touch-menu');
 function cancelHold(){clearTimeout(holdTimer);holdTimer=null;}
-function closeTouchMenu(){touchMenu.hidden=true;heldHit=null;}
+function closeTouchMenu(){if(!touchMenu.hidden)sound.effect('menuClose');touchMenu.hidden=true;heldHit=null;}
 function openTouchMenu(hit,x,y){
- clearTouchPreview();heldHit=hit;touchMenu.hidden=false;
+ clearTouchPreview();heldHit=hit;touchMenu.hidden=false;sound.effect('menuOpen');
  $('#touch-remove').disabled=!hit||hit.ground&&!water[waterKey(hit.position[0],hit.position[2])];
  $('#touch-undo').disabled=!history.length;
  touchMenu.style.left=`${Math.max(8,Math.min(innerWidth-256,x-124))}px`;
@@ -956,16 +961,20 @@ $('#undo').onclick=undo;
 document.querySelectorAll('.dock select').forEach(select=>select.addEventListener('change',clearTouchPreview));
 const dock=$('.dock'), dockMenu=$('#build-menu'), dockToggle=$('#dock-toggle');
 function setHelp(open){
+  if($('#help-panel').hidden===open)sound.effect(open?'menuOpen':'menuClose');
   $('#help-panel').hidden=!open;
   $('#help-toggle').setAttribute('aria-expanded',String(open));
   if(open)setTasks(false);
 }
 function setTasks(open){
+  if($('#tasks-panel').hidden===open)sound.effect(open?'menuOpen':'menuClose');
   if(open)setHelp(false);
   $('#tasks-panel').hidden=!open;
   $('#tasks-toggle').setAttribute('aria-expanded',String(open));
 }
 function setDock(open){
+  if((dock.dataset.open==='true')!==open)sound.effect(open?'menuOpen':'menuClose');
+  if(open)setAudioPanel(false);
   if(open)clearTouchPreview();
   if(!open && dockMenu.contains(document.activeElement))dockToggle.focus();
   dock.dataset.open=String(open);
@@ -1004,6 +1013,23 @@ controls.addEventListener('change',()=>{if(!pendingTouch)ghost.visible=false;});
 canvas.addEventListener('wheel',()=>{clearTouchPreview();cancelHold();closeTouchMenu();},{passive:true});
 addEventListener('keydown',e=>{if(!['SELECT','INPUT','TEXTAREA'].includes(document.activeElement.tagName)&&['q','e','r'].includes(e.key.toLowerCase())){clearTouchPreview();cancelHold();closeTouchMenu();}});
 addEventListener('keydown',e=>{if(['SELECT','INPUT'].includes(document.activeElement.tagName))return;if(['1','2','3','4','5','6','7','8','9'].includes(e.key))selectTool(['house','balcony','path','water','terrain','tree','camp','role','erase'][Number(e.key)-1]);if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();undo();}if(e.key.toLowerCase()==='q')orbit(Math.PI/8);if(e.key.toLowerCase()==='e')orbit(-Math.PI/8);});
+function setAudioPanel(open){
+ const panel=$('#audio-panel');if(panel.hidden===open)sound.effect(open?'menuOpen':'menuClose');
+ panel.hidden=!open;$('#audio-toggle').setAttribute('aria-expanded',String(open));
+ if(open){clearTouchPreview();cancelHold();closeTouchMenu();if(dock.dataset.open==='true')setDock(false);}
+}
+for(const input of document.querySelectorAll('[data-volume]')){
+ const key=input.dataset.volume;input.value=Math.round(sound.preferences[key]*100);
+ const output=$(`#${input.id}-value`);output.value=`${input.value}%`;
+ input.addEventListener('input',()=>{output.value=`${input.value}%`;sound.setPreferences({[key]:Number(input.value)/100});});
+}
+function updateMute(){const muted=sound.preferences.muted;$('#audio-mute').setAttribute('aria-pressed',String(muted));$('#audio-mute').textContent=muted?'Unmute':'Mute';}
+updateMute();
+$('#audio-mute').onclick=()=>{sound.setPreferences({muted:!sound.preferences.muted});updateMute();};
+$('#audio-toggle').onclick=()=>setAudioPanel($('#audio-panel').hidden);
+$('#audio-close').onclick=()=>{setAudioPanel(false);$('#audio-toggle').focus();};
+document.addEventListener('pointerdown',e=>{if(!$('#audio-panel').hidden&&!$('#audio-panel').contains(e.target)&&!$('#audio-toggle').contains(e.target))setAudioPanel(false);},true);
+addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#audio-panel').hidden){setAudioPanel(false);$('#audio-toggle').focus();}});
 function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);}addEventListener('resize',resize);resize();
 updateUI();rebuild();save();
 renderer.setAnimationLoop(t=>{

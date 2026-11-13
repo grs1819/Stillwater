@@ -186,3 +186,8 @@ button{touch-action:manipulation}
 .touch-confirm span{font-size:12px;line-height:1.3;color:var(--pine)}
 .touch-confirm button{min-width:60px;min-height:44px;border:1px solid #b7cba6;border-radius:9px;background:#e1e8d3;color:var(--pine);padding:8px;font-size:14px}
 #touch-discard{background:transparent}
+
+/* Compact sound settings, outside the building palette. */
+.audio-toggle{position:fixed;right:12px;top:calc(62px + env(safe-area-inset-top));z-index:12;width:44px;height:44px;display:grid;place-items:center;border:1px solid #c3d1b4;border-radius:50%;background:var(--paper);color:var(--pine);cursor:pointer}
+.audio-panel{position:fixed;right:12px;top:calc(112px + env(safe-area-inset-top));z-index:12;width:min(290px,calc(100vw - 24px));max-height:calc(100dvh - 128px - env(safe-area-inset-top));overflow:auto;padding:14px 18px;background:var(--paper);color:var(--pine);border:1px solid #c3d1b4;border-radius:18px;box-shadow:0 4px 18px #233f3326}
+.audio-heading{display:flex;align-items:center;justify-content:space-between;gap:6px}.audio-heading h2{font-family:Georgia,serif;font-size:18px;margin:0}.audio-panel p{font-size:12px;line-height:1.4;margin:4px 0 12px}.audio-panel label{display:flex;justify-content:space-between;font-size:13px}.audio-panel input{display:block;width:100%;height:36px;margin:0 0 5px;accent-color:#52754a;touch-action:pan-y}.audio-panel button{min-height:44px;min-width:44px;border:1px solid #b7cba6;border-radius:10px;background:#e1e8d3;color:var(--pine);font:inherit;padding:6px 12px;cursor:pointer}.audio-panel output{font-variant-numeric:tabular-nums}.audio-panel :focus-visible,.audio-toggle:focus-visible{outline:3px solid #52754a;outline-offset:2px}
