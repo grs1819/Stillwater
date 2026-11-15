@@ -1,11 +1,17 @@
 import {LIMIT,key,normalize} from './town.js';
 import {levelSite,terrainLevel} from './terrain.js';
 export const CABIN=Object.freeze({id:'timber-guest-cabin',version:1,design:'gable',width:2,depth:2,entrance:[0,2]});
+// Stable IDs: gable is the original Frontier design, so existing 2.0 saves remain valid.
+export const DESIGNS=Object.freeze({
+ gable:Object.freeze({name:'Frontier Cabin',version:1,peak:2.22,wallWidth:1.82,eave:.49,renovationCost:0,constructionLevel:0}),
+ woodland:Object.freeze({name:'Woodland Cottage',version:1,peak:2.78,wallWidth:1.78,eave:.49,renovationCost:0,constructionLevel:0}),
+ craftsman:Object.freeze({name:'Craftsman Lodge',version:1,peak:2.08,wallWidth:1.62,eave:.49,renovationCost:0,constructionLevel:0}),
+});
 export const EXTERIORS={honey:{wall:'#c6a171',frame:'#796044'},birch:{wall:'#ded4b3',frame:'#716655'}};
 export const FINISHES={moss:{color:'#718a58',tier:'cottage'},slate:{color:'#718b94',tier:'estate'}};
 export const emptyWorld=()=>({schemaVersion:2,blocks:{},water:{},terrain:{},peak:0,buildings:[]});
 export function cabinAt(x,z,rotation=0,appearance={exterior:'honey',roof:'moss'},id=crypto.randomUUID()){
- return {id,blueprint:CABIN.id,definitionVersion:1,design:CABIN.design,position:[x,z],rotation,appearance:{...appearance},gameplay:{}};
+ return {id,blueprint:CABIN.id,definitionVersion:1,design:CABIN.design,position:[x===0?0:x,z===0?0:z],rotation,appearance:{...appearance},gameplay:{}};
 }
 export function localCell(b,x,z){const [a,c]=b.position;return [[a+x,c+z],[a+z,c-x],[a-x,c-z],[a-z,c+x]][b.rotation];}
 export function footprint(b){return [[0,0],[1,0],[0,1],[1,1]].map(([x,z])=>localCell(b,x,z));}
@@ -29,13 +35,22 @@ export function customizeCabin(b,appearance){
  if(!Object.hasOwn(EXTERIORS,appearance.exterior)||!Object.hasOwn(FINISHES,appearance.roof))throw new Error('Unknown cabin finish.');
  return {...b,appearance:{exterior:appearance.exterior,roof:appearance.roof}};
 }
+// The eventual purchase/eligibility boundary: today every design is available and free.
+export function renovationQuote(design){
+ if(!Object.hasOwn(DESIGNS,design))throw new Error('Unknown architectural design.');
+ return {cost:DESIGNS[design].renovationCost,constructionLevel:DESIGNS[design].constructionLevel};
+}
+export function renovateCabin(b,{design=b.design,appearance=b.appearance}={}){
+ renovationQuote(design);
+ return {...customizeCabin(b,appearance),design};
+}
 export function validateWorld(value){
  if(value?.schemaVersion!==2||!Array.isArray(value.buildings)||value.buildings.length>100||!value.blocks||typeof value.blocks!=='object'||Array.isArray(value.blocks))throw new Error('Choose a Stillwater 2.0 village file.');
  if(JSON.stringify(value).length>2_000_000)throw new Error('This village is too large.');
  const world={...normalize(value),schemaVersion:2,buildings:[]},ids=new Set();
  for(const input of value.buildings){
-  if(!input||typeof input.id!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.id)||ids.has(input.id)||input.blueprint!==CABIN.id||input.definitionVersion!==1||input.design!==CABIN.design||!Array.isArray(input.position)||input.position.length!==2||!input.position.every(Number.isInteger)||![0,1,2,3].includes(input.rotation)||!input.gameplay||typeof input.gameplay!=='object'||Array.isArray(input.gameplay))throw new Error('Unsupported or invalid building. Original save retained.');
-  const b=customizeCabin(cabinAt(...input.position,input.rotation,input.appearance,input.id),input.appearance||{});b.gameplay=structuredClone(input.gameplay);
+  if(!input||typeof input.id!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.id)||ids.has(input.id)||input.blueprint!==CABIN.id||input.definitionVersion!==1||!Object.hasOwn(DESIGNS,input.design)||!Array.isArray(input.position)||input.position.length!==2||!input.position.every(Number.isInteger)||![0,1,2,3].includes(input.rotation)||!input.gameplay||typeof input.gameplay!=='object'||Array.isArray(input.gameplay))throw new Error('Unsupported or invalid building. Original save retained.');
+  const b=renovateCabin(cabinAt(...input.position,input.rotation,input.appearance,input.id),{design:input.design,appearance:input.appearance||{}});b.gameplay=structuredClone(input.gameplay);
   const error=placementError(b,world);if(error)throw new Error(error);
   ids.add(b.id);world.buildings.push(b);
  }

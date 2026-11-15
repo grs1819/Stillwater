@@ -1,4 +1,4 @@
-import {emptyWorld,validateWorld,cabinAt,placementError,customizeCabin,cabinOccupancy,navigationBlocks,footprint} from './blueprints.js';
+import {renovateCabin,emptyWorld,validateWorld,cabinAt,placementError,cabinOccupancy,navigationBlocks,footprint} from './blueprints.js';
 import {createCabinView} from './cabin-view.js';
 import {createAccounts} from './accounts.js';
 import {createCloudSync,supabaseRemote} from './cloud-sync.js';
@@ -109,7 +109,7 @@ let water=state.water,terrain=state.terrain||{},levelTarget=null;
 const waterView=createWaterView(scene,material,box);
 const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
 let waterAnalysis;
-let cabins=state.buildings,selectedCabin=null,cabinRotation=0,pendingCabin=null;
+let cabins=state.buildings,selectedCabin=null,cabinRotation=0,pendingCabin=null,renovationDraft=null;
 let blocks=state.blocks,peak=state.peak,history=[],tool='house',pointerDown=null,hoverHit=null;
 const buildings=new THREE.Group();scene.add(buildings);
 const villagers=createVillagers(scene,material);
@@ -777,6 +777,7 @@ function rebuild(){
   villagers.rebuild(navigationBlocks(blocks,cabins),water,peak>=3,terrain);
 }
 function commit(next,nextWater=water,nextTerrain=terrain,nextCabins=cabins){
+  cancelRenovation(false);
   const cue=editSound({blocks,water,terrain},{blocks:next,water:nextWater,terrain:nextTerrain});
   clearPreview();
   history.push(JSON.stringify({blocks,water,terrain,cabins}));if(history.length>80)history.shift();
@@ -784,7 +785,7 @@ function commit(next,nextWater=water,nextTerrain=terrain,nextCabins=cabins){
   sound.effect(cue);
   for(const m of milestones)if(before<m.n&&peak>=m.n){notify(`✧ ${m.text}`);sound.effect('unlock');}
 }
-function undo(){clearPreview();if(!history.length)return;const previous=JSON.parse(history.pop());blocks=previous.blocks;water=previous.water;terrain=previous.terrain||{};cabins=previous.cabins||[];selectedCabin=null;syncCabinPanel();updateUI();rebuild();save();sound.effect('undo');ghost.visible=false;}
+function undo(){if(renovationDraft){cancelRenovation();return;}clearPreview();if(!history.length)return;const previous=JSON.parse(history.pop());blocks=previous.blocks;water=previous.water;terrain=previous.terrain||{};cabins=previous.cabins||[];selectedCabin=null;syncCabinPanel();updateUI();rebuild();save();sound.effect('undo');ghost.visible=false;}
 function destination(hit){
   if(!hit)return null;
   const [x,y,z]=hit.position;
@@ -803,11 +804,12 @@ function edit(hit,remove=false,paint=false){
   const [x,,z]=hit.position;
   if(hit.buildingId){
     if(remove||tool==='erase'){commit(blocks,water,terrain,cabins.filter(b=>b.id!==hit.buildingId));selectedCabin=null;syncCabinPanel();sound.effect('remove');}
-    else {selectedCabin=hit.buildingId;selectTool('house');syncCabinPanel();setDock(true);}
+    else {cancelRenovation(false);selectedCabin=hit.buildingId;selectTool('house');syncCabinPanel();setDock(true);}
     return;
   }
   if(tool==='house'&&$('#building-mode').value==='cabin'&&!remove){
-    const b=cabinAt(x,z,cabinRotation,{exterior:$('#cabin-exterior').value,roof:$('#cabin-roof').value});
+    if(renovationDraft){notify('Confirm or cancel this renovation first.');return;}
+    const b=renovateCabin(cabinAt(x,z,cabinRotation),cabinChoices());
     const error=placementError(b,currentVillageData());if(error){notify(error);return;}
     commit(blocks,water,terrain,[...cabins,b]);sound.effect('wood');selectedCabin=null;syncCabinPanel();return;
   }
@@ -845,6 +847,7 @@ function edit(hit,remove=false,paint=false){
 const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2(),pickHits=[];
 function pick(e){const rect=canvas.getBoundingClientRect();pointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);camera.updateMatrixWorld(true);raycaster.setFromCamera(pointer,camera);pickHits.length=0;const hits=raycaster.intersectObjects(pickTargets,false,pickHits);for(const hit of hits){if(hit.object===ground||hit.object.userData.terrain){const x=Math.round(hit.point.x),z=Math.round(hit.point.z);return Math.abs(x)<=LIMIT&&Math.abs(z)<=LIMIT?{position:[x,0,z],normal:[0,1,0],ground:true}:null;}return {buildingId:hit.object.userData.buildingId,position:hit.object.userData.position,normal:hit.object.userData.normal||hit.face.normal.toArray().map(Math.round),ground:false};}return null;}
 function preview(hit){
+  if(renovationDraft)return;
   cabinGhost.group.visible=false;entranceArrow.visible=false;
   if(hit?.buildingId){const b=cabins.find(b=>b.id===hit.buildingId);showCabinFootprint(b,'#fff5bf');return;}
   if(hit&&tool==='house'&&$('#building-mode').value==='cabin'){
@@ -863,7 +866,7 @@ function preview(hit){
   ghost.material.color.set(tool==='water'?'#77c9ce':tool==='erase'?'#d78469':'#fff5bf');
   ghost.scale.set(1,tool==='water'?.065:tool==='balcony'?.16:1,1);
 }
-function clearPreview(){ghost.visible=false;cabinGhost.group.visible=false;entranceArrow.visible=false;pendingCabin=null;$('#cabin-placement').hidden=true;}
+function clearPreview(){ghost.visible=false;if(!renovationDraft){cabinGhost.group.visible=false;entranceArrow.visible=false;}pendingCabin=null;$('#cabin-placement').hidden=true;}
 const touchContacts=new Map();
 let holdTimer=null,heldHit=null;
 const touchMenu=$('#touch-menu');
@@ -932,7 +935,7 @@ canvas.addEventListener('pointerup',e=>{
     cancelHold();touchContacts.delete(e.pointerId);
     if(contact&&!contact.held&&!contact.moved&&Math.hypot(e.clientX-contact.x,e.clientY-contact.y)<=8&&performance.now()-contact.time<500){
       const hit=pick(e);
-      if(hit&&!hit.buildingId&&tool==='house'&&$('#building-mode').value==='cabin'){
+      if(hit&&!hit.buildingId&&!renovationDraft&&tool==='house'&&$('#building-mode').value==='cabin'){
         if(dock.dataset.open==='true')setDock(false);selectedCabin=null;syncCabinPanel();pendingCabin=hit;showCabinGhost(hit);$('#cabin-placement').hidden=false;
       }else{edit(hit);if(!selectedCabin&&dock.dataset.open==='true')setDock(false);}
     }
@@ -952,7 +955,7 @@ canvas.addEventListener('mousedown',e=>{if(e.button===1)e.preventDefault();});
 canvas.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault();});
 canvas.addEventListener('pointerleave',e=>{if(e.pointerType!=='touch'&&!pendingCabin)clearPreview();});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
-function selectTool(value){if(value!=='house')selectedCabin=null;clearPreview();cancelHold();closeTouchMenu();tool=value;$('#water-options').hidden=value!=='water';$('#building-materials').hidden=value!=='house';syncCabinPanel();$('#role-options').hidden=value!=='role';$('#tree-options').hidden=value!=='tree';$('#path-options').hidden=value!=='path';$('#deck-options').hidden=value!=='balcony';$('#camp-options').hidden=value!=='camp';$('#terrain-options').hidden=value!=='terrain';document.querySelectorAll('[data-tool]').forEach(b=>{b.classList.toggle('active',b.dataset.tool===tool);b.setAttribute('aria-pressed',String(b.dataset.tool===tool));});ghost.visible=false;}
+function selectTool(value){cancelRenovation(false);if(value!=='house')selectedCabin=null;clearPreview();cancelHold();closeTouchMenu();tool=value;$('#water-options').hidden=value!=='water';$('#building-materials').hidden=value!=='house';syncCabinPanel();$('#role-options').hidden=value!=='role';$('#tree-options').hidden=value!=='tree';$('#path-options').hidden=value!=='path';$('#deck-options').hidden=value!=='balcony';$('#camp-options').hidden=value!=='camp';$('#terrain-options').hidden=value!=='terrain';document.querySelectorAll('[data-tool]').forEach(b=>{b.classList.toggle('active',b.dataset.tool===tool);b.setAttribute('aria-pressed',String(b.dataset.tool===tool));});ghost.visible=false;}
 document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>selectTool(b.dataset.tool));
 $('#undo').onclick=undo;
 document.querySelectorAll('.dock select').forEach(select=>select.addEventListener('change',clearPreview));
@@ -970,6 +973,7 @@ function setTasks(open){
   $('#tasks-toggle').setAttribute('aria-expanded',String(open));
 }
 function setDock(open){
+  if(!open)cancelRenovation();
   if((dock.dataset.open==='true')!==open)sound.effect(open?'menuOpen':'menuClose');
   if(open)setAudioPanel(false);
   if(open)clearPreview();
@@ -1046,7 +1050,7 @@ const cabinView=createCabinView({box,beam:timberBeam,material,roofingMaterial,ro
 const cabinGhost=createCabinView({box,beam:timberBeam,material,roofingMaterial,roofDetails},true);scene.add(cabinGhost.group);cabinGhost.group.visible=false;
 const entranceArrow=new THREE.ArrowHelper(new THREE.Vector3(0,0,1),new THREE.Vector3(),.75,0x356346,.27,.24);scene.add(entranceArrow);entranceArrow.visible=false;
 function showCabinGhost(hit){
- const b=cabinAt(hit.position[0],hit.position[2],cabinRotation,{exterior:$('#cabin-exterior').value,roof:$('#cabin-roof').value},'preview');
+ const b=renovateCabin(cabinAt(hit.position[0],hit.position[2],cabinRotation,undefined,'preview'),cabinChoices());
  const error=placementError(b,currentVillageData());
  cabinGhost.update([b],(x,z)=>terrainHeight(terrain,x,z));cabinGhost.setValid(!error);cabinGhost.group.visible=true;
  showCabinFootprint(b,error?'#d78469':'#91ba8a');
@@ -1063,25 +1067,44 @@ function showCabinFootprint(b,color){
 }
 function syncCabinPanel(){
  const b=cabins.find(b=>b.id===selectedCabin);if(!b)selectedCabin=null;
+ dock.classList.toggle('cabin-context',!!b);
  cabinSelection.visible=!!b;
  if(b){const cells=footprint(b);cabinSelection.position.set(cells.reduce((n,c)=>n+c[0],0)/4,terrainHeight(terrain,...b.position)+.12,cells.reduce((n,c)=>n+c[1],0)/4);}
- if(b){$('#building-mode').value='cabin';$('#cabin-exterior').value=b.appearance.exterior;$('#cabin-roof').value=b.appearance.roof;}
+ if(b){const shown=renovationDraft||b;$('#building-mode').value='cabin';$('#cabin-design').value=shown.design;$('#cabin-exterior').value=shown.appearance.exterior;$('#cabin-roof').value=shown.appearance.roof;}
  const active=$('#building-mode').value==='cabin';
  $('#cabin-options').hidden=!active;$('#freeform-options').hidden=active;
- $('#cabin-status').textContent=b?'Selected cabin · finishes apply immediately':'Timber Guest Cabin · 2 × 2 · tap dry, level ground';
- $('#cabin-new').hidden=!b;$('#cabin-rotate').disabled=!!b;
+ $('#cabin-status').textContent=b?(renovationDraft?'Renovation preview · free · confirm to keep':'Selected cabin · choose a design or finish to preview'):'Timber Guest Cabin · 2 × 2 · tap dry, level ground';
+ $('#cabin-new').hidden=!b;$('#cabin-rotate').hidden=!!b;$('#cabin-rotate').disabled=!!b;
+ $('#renovation-actions').hidden=!b;$('#renovation-confirm').disabled=!renovationDraft;$('#renovation-cancel').disabled=!renovationDraft;
  $('#cabin-rotate').textContent=`↻ Rotate · ${cabinRotation*90}°`;
 }
-$('#building-mode').onchange=()=>{selectedCabin=null;syncCabinPanel();clearPreview();};
-$('#cabin-new').onclick=()=>{selectedCabin=null;syncCabinPanel();};
+$('#building-mode').onchange=()=>{cancelRenovation(false);selectedCabin=null;syncCabinPanel();clearPreview();};
+$('#cabin-new').onclick=()=>{cancelRenovation(false);selectedCabin=null;syncCabinPanel();};
 $('#cabin-rotate').onclick=()=>{cabinRotation=(cabinRotation+1)%4;syncCabinPanel();clearPreview();if(hoverHit)preview(hoverHit);};
-for(const id of ['cabin-exterior','cabin-roof'])$('#'+id).onchange=()=>{
- const b=cabins.find(b=>b.id===selectedCabin);if(!b)return;
- const next=customizeCabin(b,{exterior:$('#cabin-exterior').value,roof:$('#cabin-roof').value});
- commit(blocks,water,terrain,cabins.map(old=>old.id===b.id?next:old));sound.effect('wood');syncCabinPanel();
+function cabinChoices(){return {design:$('#cabin-design').value,appearance:{exterior:$('#cabin-exterior').value,roof:$('#cabin-roof').value}};}
+function cancelRenovation(refresh=true){
+ if(!renovationDraft)return;
+ renovationDraft=null;cabinView.setHidden(null);cabinGhost.group.visible=false;entranceArrow.visible=false;renderer.shadowMap.needsUpdate=true;
+ if(refresh)syncCabinPanel();
+}
+for(const id of ['cabin-design','cabin-exterior','cabin-roof'])$('#'+id).onchange=()=>{
+ const b=cabins.find(b=>b.id===selectedCabin);
+ if(!b){if(hoverHit)preview(hoverHit);return;}
+ const next=renovateCabin(b,cabinChoices());
+ if(next.design===b.design&&JSON.stringify(next.appearance)===JSON.stringify(b.appearance)){cancelRenovation();return;}
+ renovationDraft=next;cabinView.setHidden(b.id);cabinGhost.update([next],(x,z)=>terrainHeight(terrain,x,z));cabinGhost.setValid(true);cabinGhost.group.visible=true;entranceArrow.visible=false;renderer.shadowMap.needsUpdate=true;syncCabinPanel();
+};
+$('#renovation-cancel').onclick=()=>cancelRenovation();
+$('#renovation-confirm').onclick=()=>{
+ const draft=renovationDraft;if(!draft)return;
+ const original=cabins.find(b=>b.id===draft.id);if(!original){cancelRenovation();return;}
+ // Apply only appearance to the latest functional state, never a stale draft copy.
+ const next=renovateCabin(original,{design:draft.design,appearance:draft.appearance});
+ commit(blocks,water,terrain,cabins.map(b=>b.id===next.id?next:b));sound.effect('wood');syncCabinPanel();
 };
 function currentVillageData(){return {schemaVersion:2,blocks,water,terrain,peak,buildings:cabins};}
 function loadVillage(slot){
+ cancelRenovation(false);
  ({blocks,water,terrain,peak,buildings:cabins}=slot?.data||emptyWorld());history=[];selectedCabin=null;syncCabinPanel();levelTarget=null;
  resetPointerInteraction();updateUI();rebuild();recenter();
 }
