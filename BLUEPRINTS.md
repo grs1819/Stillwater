@@ -30,7 +30,10 @@ The existing three-slot store accepts injected validation/default-world function
 `stillwater-2-beta-v1` when staging. Previous live/beta saves are not deleted or read.
 Export envelopes use version 2. Unsupported world/building versions and overlapping
 blueprints are rejected rather than silently converted. Local revision/owner fields
-remain available for future cloud integration; Supabase sync is not enabled.
+remain available for future cloud integration; Supabase sync is not enabled for 2.0. Newer account/sync modules are retained,
+but accountConfig.enabled is false for this milestone: the existing backend uses
+the old beta collection. No remote rows are read, reset, or overwritten. A separate
+cloud namespace/schema must be provisioned and tested before enabling 2.0 accounts.
 
 ## Validation
 `npm run check` and `npm test`. Browser scripts use external Playwright via

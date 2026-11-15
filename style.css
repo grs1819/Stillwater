@@ -204,3 +204,4 @@ button{touch-action:manipulation}
 #cabin-options label{grid-row:2}#cabin-options select{grid-row:3;width:100%;min-width:0;font-size:12px}
 #cabin-options button{grid-row:4}#freeform-options label{grid-row:1}#freeform-options select{grid-row:2;width:100%}
 @media(max-width:600px){#building-materials{width:100%}#building-mode{font-size:12px}#cabin-options button{min-height:38px}#cabin-options select{min-height:40px}}
+#account-controls input{box-sizing:border-box;max-width:100%;width:100%;font-size:16px;padding:10px;border:1px solid #b7cba6;border-radius:8px;background:#fffdf6;color:var(--pine);margin:6px 0}#account-controls button,#cloud-conflict button{margin:4px 4px 4px 0}#account-identity{overflow-wrap:anywhere}#cloud-conflict{padding:12px;border:1px solid #9a7548;border-radius:10px;margin:12px 0}
