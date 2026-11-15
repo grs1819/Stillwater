@@ -5,10 +5,26 @@ try{
  for(const mobile of [false,true]){
   const page=await browser.newPage({viewport:mobile?{width:390,height:844}:{width:1280,height:850},isMobile:mobile,hasTouch:mobile});const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(()=>{localStorage.setItem('mosswood-v2','production-sentinel');});
-  await page.route('**/app.js*',async route=>{const response=await route.fetch();await route.fulfill({response,body:await response.text()+`\nrenderer.setAnimationLoop(null);controls.enableDamping=false;window.probe={data:currentVillageData,edit,undo,selectTool,save,villages,render:()=>renderer.render(scene,camera),point:(x,y,z)=>{camera.updateMatrixWorld(true);const p=new THREE.Vector3(x,y,z).project(camera);return {x:(p.x+1)*innerWidth/2,y:(1-p.y)*innerHeight/2};},meshes:()=>cabinView.group.children.length};`});});
+  await page.route('**/app.js*',async route=>{const response=await route.fetch();await route.fulfill({response,body:await response.text()+`\nrenderer.setAnimationLoop(null);controls.enableDamping=false;window.probe={data:currentVillageData,edit,undo,selectTool,save,villages,render:()=>renderer.render(scene,camera),point:(x,y,z)=>{camera.updateMatrixWorld(true);const p=new THREE.Vector3(x,y,z).project(camera);return {x:(p.x+1)*innerWidth/2,y:(1-p.y)*innerHeight/2};},preview:()=>({visible:cabinGhost.group.visible,arrow:entranceArrow.visible,rotation:cabinRotation,pending:!!pendingCabin}),meshes:()=>cabinView.group.children.length};`});});
   await page.goto(process.env.STILLWATER_URL||'http://localhost:5193');await page.waitForFunction(()=>window.probe);
   const click=async(x,y,z)=>{const p=await page.evaluate(([x,y,z])=>probe.point(x,y,z),[x,y,z]);if(mobile)await page.touchscreen.tap(p.x,p.y);else await page.mouse.click(p.x,p.y);};
-  await click(0,0,0);assert.equal(await page.evaluate(()=>probe.data().buildings.length),1);
+  if(mobile){
+   await page.evaluate(()=>{probe.selectTool('tree');probe.edit({position:[0,0,0],normal:[0,1,0],ground:true});probe.selectTool('house');});
+   await click(0,1,0);assert.equal(await page.locator('#cabin-place').isDisabled(),true);assert.equal(await page.evaluate(()=>probe.data().buildings.length),0);
+   await page.locator('#cabin-placement-cancel').tap();await page.evaluate(()=>probe.undo());
+  }
+  if(!mobile){const p=await page.evaluate(()=>probe.point(0,0,0));await page.mouse.move(p.x,p.y);assert.equal(await page.evaluate(()=>probe.preview().visible),true);assert.equal(await page.evaluate(()=>probe.preview().arrow),true);}
+  await click(0,0,0);
+  if(mobile){
+   assert.equal(await page.evaluate(()=>probe.data().buildings.length),0);assert.equal(await page.evaluate(()=>probe.preview().pending),true);
+   await page.locator('#cabin-placement-rotate').tap();assert.equal(await page.evaluate(()=>probe.preview().rotation),1);
+   for(let i=0;i<3;i++)await page.locator('#cabin-placement-rotate').tap();
+   await page.evaluate(()=>probe.render());await page.screenshot({path:'/tmp/stillwater-cabin-ghost.png'});
+   await page.locator('#cabin-placement-cancel').tap();assert.equal(await page.evaluate(()=>probe.preview().visible),false);assert.equal(await page.evaluate(()=>probe.data().buildings.length),0);
+   await click(0,0,0);const cancelSession=await page.context().newCDPSession(page);await cancelSession.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{id:1,x:110,y:330}]});await cancelSession.send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});assert.equal(await page.evaluate(()=>probe.preview().pending),false);assert.equal(await page.evaluate(()=>probe.data().buildings.length),0);
+   await click(0,0,0);await page.locator('#cabin-place').tap();assert.equal(await page.evaluate(()=>probe.preview().visible),false);
+  }
+  assert.equal(await page.evaluate(()=>probe.data().buildings.length),1);
   const id=await page.evaluate(()=>probe.data().buildings[0].id);
   await click(.5,1,.5);await page.waitForFunction(()=>!document.querySelector('#cabin-new').hidden);
   await page.locator('#cabin-exterior').selectOption('birch');await page.locator('#cabin-roof').selectOption('slate');

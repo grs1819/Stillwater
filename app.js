@@ -109,7 +109,7 @@ let water=state.water,terrain=state.terrain||{},levelTarget=null;
 const waterView=createWaterView(scene,material,box);
 const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
 let waterAnalysis;
-let cabins=state.buildings,selectedCabin=null,cabinRotation=0;
+let cabins=state.buildings,selectedCabin=null,cabinRotation=0,pendingCabin=null;
 let blocks=state.blocks,peak=state.peak,history=[],tool='house',pointerDown=null,hoverHit=null;
 const buildings=new THREE.Group();scene.add(buildings);
 const villagers=createVillagers(scene,material);
@@ -845,9 +845,10 @@ function edit(hit,remove=false,paint=false){
 const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2(),pickHits=[];
 function pick(e){const rect=canvas.getBoundingClientRect();pointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);camera.updateMatrixWorld(true);raycaster.setFromCamera(pointer,camera);pickHits.length=0;const hits=raycaster.intersectObjects(pickTargets,false,pickHits);for(const hit of hits){if(hit.object===ground||hit.object.userData.terrain){const x=Math.round(hit.point.x),z=Math.round(hit.point.z);return Math.abs(x)<=LIMIT&&Math.abs(z)<=LIMIT?{position:[x,0,z],normal:[0,1,0],ground:true}:null;}return {buildingId:hit.object.userData.buildingId,position:hit.object.userData.position,normal:hit.object.userData.normal||hit.face.normal.toArray().map(Math.round),ground:false};}return null;}
 function preview(hit){
+  cabinGhost.group.visible=false;entranceArrow.visible=false;
   if(hit?.buildingId){const b=cabins.find(b=>b.id===hit.buildingId);showCabinFootprint(b,'#fff5bf');return;}
   if(hit&&tool==='house'&&$('#building-mode').value==='cabin'){
-    const b=cabinAt(hit.position[0],hit.position[2],cabinRotation);showCabinFootprint(b,placementError(b,currentVillageData())?'#d78469':'#fff5bf');return;
+    showCabinGhost(hit);return;
   }
   const p=destination(hit);
   if(p&&terrainMode()){const mode=terrainMode();ghost.visible=mode==='level'&&levelTarget===null||!!editTerrain(terrain,navigationBlocks(blocks,cabins,true),water,p[0],p[2],mode,levelTarget);ghost.position.set(p[0],terrainHeight(terrain,p[0],p[2])+.06,p[2]);ghost.scale.set(1,.08,1);ghost.material.color.set(mode==='lower'?'#d8b790':'#fff5bf');return;}
@@ -862,7 +863,7 @@ function preview(hit){
   ghost.material.color.set(tool==='water'?'#77c9ce':tool==='erase'?'#d78469':'#fff5bf');
   ghost.scale.set(1,tool==='water'?.065:tool==='balcony'?.16:1,1);
 }
-function clearPreview(){ghost.visible=false;}
+function clearPreview(){ghost.visible=false;cabinGhost.group.visible=false;entranceArrow.visible=false;pendingCabin=null;$('#cabin-placement').hidden=true;}
 const touchContacts=new Map();
 let holdTimer=null,heldHit=null;
 const touchMenu=$('#touch-menu');
@@ -929,8 +930,13 @@ canvas.addEventListener('pointerup',e=>{
   if(e.pointerType==='touch'){
     const contact=touchContacts.get(e.pointerId);
     cancelHold();touchContacts.delete(e.pointerId);
-    if(contact&&!contact.held&&!contact.moved&&Math.hypot(e.clientX-contact.x,e.clientY-contact.y)<=8&&performance.now()-contact.time<500){edit(pick(e));if(!selectedCabin&&dock.dataset.open==='true')setDock(false);}
-    ghost.visible=false;
+    if(contact&&!contact.held&&!contact.moved&&Math.hypot(e.clientX-contact.x,e.clientY-contact.y)<=8&&performance.now()-contact.time<500){
+      const hit=pick(e);
+      if(hit&&!hit.buildingId&&tool==='house'&&$('#building-mode').value==='cabin'){
+        if(dock.dataset.open==='true')setDock(false);selectedCabin=null;syncCabinPanel();pendingCabin=hit;showCabinGhost(hit);$('#cabin-placement').hidden=false;
+      }else{edit(hit);if(!selectedCabin&&dock.dataset.open==='true')setDock(false);}
+    }
+    if(!pendingCabin)ghost.visible=false;
     return;
   }
   if(pointerDown?.pointerId!==e.pointerId)return;
@@ -944,7 +950,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)resetPointe
 // Suppress native middle-button autoscroll on browsers that still dispatch it.
 canvas.addEventListener('mousedown',e=>{if(e.button===1)e.preventDefault();});
 canvas.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault();});
-canvas.addEventListener('pointerleave',()=>{ghost.visible=false;});
+canvas.addEventListener('pointerleave',e=>{if(e.pointerType!=='touch'&&!pendingCabin)clearPreview();});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 function selectTool(value){if(value!=='house')selectedCabin=null;clearPreview();cancelHold();closeTouchMenu();tool=value;$('#water-options').hidden=value!=='water';$('#building-materials').hidden=value!=='house';syncCabinPanel();$('#role-options').hidden=value!=='role';$('#tree-options').hidden=value!=='tree';$('#path-options').hidden=value!=='path';$('#deck-options').hidden=value!=='balcony';$('#camp-options').hidden=value!=='camp';$('#terrain-options').hidden=value!=='terrain';document.querySelectorAll('[data-tool]').forEach(b=>{b.classList.toggle('active',b.dataset.tool===tool);b.setAttribute('aria-pressed',String(b.dataset.tool===tool));});ghost.visible=false;}
 document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>selectTool(b.dataset.tool));
@@ -1037,6 +1043,20 @@ addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#audio-panel').hidden){s
 function villageMessage(message){$('#village-message').textContent=message;notify(message);}
 const cabinSelection=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(2.03,.06,2.03)),new THREE.LineBasicMaterial({color:'#f6df97'}));cabinSelection.visible=false;scene.add(cabinSelection);
 const cabinView=createCabinView({box,beam:timberBeam,material,roofingMaterial,roofDetails});scene.add(cabinView.group);
+const cabinGhost=createCabinView({box,beam:timberBeam,material,roofingMaterial,roofDetails},true);scene.add(cabinGhost.group);cabinGhost.group.visible=false;
+const entranceArrow=new THREE.ArrowHelper(new THREE.Vector3(0,0,1),new THREE.Vector3(),.75,0x356346,.27,.24);scene.add(entranceArrow);entranceArrow.visible=false;
+function showCabinGhost(hit){
+ const b=cabinAt(hit.position[0],hit.position[2],cabinRotation,{exterior:$('#cabin-exterior').value,roof:$('#cabin-roof').value},'preview');
+ const error=placementError(b,currentVillageData());
+ cabinGhost.update([b],(x,z)=>terrainHeight(terrain,x,z));cabinGhost.setValid(!error);cabinGhost.group.visible=true;
+ showCabinFootprint(b,error?'#d78469':'#91ba8a');
+ const angle=cabinRotation*Math.PI/2,dx=Math.sin(angle),dz=Math.cos(angle);
+ entranceArrow.position.set(b.position[0]+dx*1.7,terrainHeight(terrain,...b.position)+.18,b.position[1]+dz*1.7);entranceArrow.setDirection(new THREE.Vector3(dx,0,dz));entranceArrow.setColor(error?'#b95c48':'#356346');entranceArrow.visible=true;
+ $('#cabin-place').disabled=!!error;$('#cabin-placement-status').textContent=error||'Entrance follows the arrow · ready to place';
+}
+$('#cabin-place').onclick=()=>{const hit=pendingCabin;if(!hit)return;edit(hit);};
+$('#cabin-placement-cancel').onclick=clearPreview;
+$('#cabin-placement-rotate').onclick=()=>{if(!pendingCabin)return;cabinRotation=(cabinRotation+1)%4;syncCabinPanel();showCabinGhost(pendingCabin);};
 function showCabinFootprint(b,color){
  const cells=footprint(b),xs=cells.map(c=>c[0]),zs=cells.map(c=>c[1]);
  ghost.visible=true;ghost.position.set((Math.min(...xs)+Math.max(...xs))/2,terrainHeight(terrain,...b.position)+.08,(Math.min(...zs)+Math.max(...zs))/2);ghost.scale.set(2,.12,2);ghost.material.color.set(color);
@@ -1054,7 +1074,7 @@ function syncCabinPanel(){
 }
 $('#building-mode').onchange=()=>{selectedCabin=null;syncCabinPanel();clearPreview();};
 $('#cabin-new').onclick=()=>{selectedCabin=null;syncCabinPanel();};
-$('#cabin-rotate').onclick=()=>{cabinRotation=(cabinRotation+1)%4;syncCabinPanel();clearPreview();};
+$('#cabin-rotate').onclick=()=>{cabinRotation=(cabinRotation+1)%4;syncCabinPanel();clearPreview();if(hoverHit)preview(hoverHit);};
 for(const id of ['cabin-exterior','cabin-roof'])$('#'+id).onchange=()=>{
  const b=cabins.find(b=>b.id===selectedCabin);if(!b)return;
  const next=customizeCabin(b,{exterior:$('#cabin-exterior').value,roof:$('#cabin-roof').value});

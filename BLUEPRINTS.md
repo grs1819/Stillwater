@@ -1,7 +1,9 @@
 # Stillwater 2.0: first blueprint
 
-Beta-only prototype: Building → Timber Guest Cabin. Tap dry, level ground to place
-one 2 × 2 cabin. Rotate before placement in quarter turns. Tap any cabin surface
+Beta-only prototype: Building → Timber Guest Cabin. Desktop: hover to preview and click to place one 2 × 2 cabin. Mobile: tap dry,
+level ground for a ghost, then Rotate, Place cabin or Cancel. A doorway arrow
+indicates facing; green/red preview colors indicate placement validity. Preview
+state is temporary and never saved. Camera gestures/tool changes cancel it. Rotate before placement in quarter turns. Tap any cabin surface
 to select the whole building and change its exterior or roof in the existing dock.
 The highlighted footprint identifies the selected cabin. Place another cabin clears
 selection. Remove/right-click/hold Remove deletes the entire instance; Undo restores
