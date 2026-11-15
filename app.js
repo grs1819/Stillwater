@@ -1,3 +1,5 @@
+import {emptyWorld,validateWorld,cabinAt,placementError,customizeCabin,cabinOccupancy,navigationBlocks,footprint} from './blueprints.js';
+import {createCabinView} from './cabin-view.js';
 import {createVillageStore} from './village-store.js';
 import {createAudio,editSound} from './audio.js?v=crossfade-1';
 import {terrainHeight,terrainLevel,levelSite,editTerrain,TERRAIN_STEP,borderHeight} from './terrain.js';
@@ -95,12 +97,13 @@ for(let x=-22;x<=22;x+=2)for(let z=-22;z<=22;z+=2){
  const rock=new THREE.Mesh(borderRockGeometry,material(h>2?'#929589':'#9da28c'));rock.name='border-boulder';
  rock.position.set(xx,h+size*.3,zz);rock.scale.set(size*1.25,size*.8,size);rock.rotation.set(.15,rand(z+3,x)*Math.PI,.12);rock.castShadow=true;rock.receiveShadow=true;forest.add(rock);
 }
-const villages=createVillageStore({storage:{getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)},namespace:'mosswood-v2'});
-let state=villages.active?.data||normalize({});
+const villages=createVillageStore({storage:{getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)},namespace:'stillwater-2-v1',validate:validateWorld,empty:emptyWorld,migrate:false});
+let state=villages.active?.data||emptyWorld();
 let water=state.water,terrain=state.terrain||{},levelTarget=null;
 const waterView=createWaterView(scene,material,box);
 const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
 let waterAnalysis;
+let cabins=state.buildings,selectedCabin=null,cabinRotation=0;
 let blocks=state.blocks,peak=state.peak,history=[],tool='house',pointerDown=null,hoverHit=null;
 const buildings=new THREE.Group();scene.add(buildings);
 const villagers=createVillagers(scene,material);
@@ -108,7 +111,7 @@ let targets=[],pickTargets=[];
 const milestones=[{n:3,name:'The first neighbors',text:'Villagers have found their way to Stillwater.'},{n:6,name:'A lighter touch',text:'Silver birch timber unlocked.'},{n:9,name:'Earth & ember',text:'Rust red roof color unlocked.'},{n:12,name:'A town of your own',text:'Red cedar timber and slate blue roof color unlocked.'}];
 function notify(message){$('#toast').textContent=message;$('#toast').classList.add('show');clearTimeout(notify.timer);notify.timer=setTimeout(()=>$('#toast').classList.remove('show'),4200);}
 function save(){
- try{villages.save({blocks,water,terrain,peak});return true;}
+ try{villages.save(currentVillageData());return true;}
  catch(error){villageMessage(error.message+' Keep this tab open and export your village.');return false;}
 }
 
@@ -761,20 +764,21 @@ function rebuild(){
     const elevation=terrainHeight(terrain,x,z);
     for(const child of buildings.children.slice(childStart)){if(b.type==='path'&&!levelSite(terrain,x,z))drapePath(child);else child.position.y+=elevation;}
   }
-  pickTargets=[...targets,...clearing.children,ground];
+  const cabinTargets=cabinView.update(cabins,(x,z)=>terrainHeight(terrain,x,z));
+  pickTargets=[...cabinTargets,...targets,...clearing.children,ground];
   buildings.updateMatrixWorld(true);clearing.updateMatrixWorld(true);
   sound.setWorld([...Object.entries(water).map(([k,kind])=>{const [x,z]=k.split(',').map(Number);return {x,y:0,z,kind};}),...Object.entries(blocks).filter(([,b])=>b.type==='campProp'&&b.kind==='fire').map(([k])=>{const [x,y,z]=k.split(',').map(Number);return {x,y:y+terrainHeight(terrain,x,z),z,kind:'fire'};})]);
-  villagers.rebuild(blocks,water,peak>=3,terrain);
+  villagers.rebuild(navigationBlocks(blocks,cabins),water,peak>=3,terrain);
 }
-function commit(next,nextWater=water,nextTerrain=terrain){
+function commit(next,nextWater=water,nextTerrain=terrain,nextCabins=cabins){
   const cue=editSound({blocks,water,terrain},{blocks:next,water:nextWater,terrain:nextTerrain});
   clearPreview();
-  history.push(JSON.stringify({blocks,water,terrain}));if(history.length>80)history.shift();
-  const before=peak;blocks=next;water=nextWater;terrain=nextTerrain;updateUI();rebuild();save();
+  history.push(JSON.stringify({blocks,water,terrain,cabins}));if(history.length>80)history.shift();
+  const before=peak;blocks=next;water=nextWater;terrain=nextTerrain;cabins=nextCabins;updateUI();rebuild();save();
   sound.effect(cue);
   for(const m of milestones)if(before<m.n&&peak>=m.n){notify(`✧ ${m.text}`);sound.effect('unlock');}
 }
-function undo(){clearPreview();if(!history.length)return;const previous=JSON.parse(history.pop());blocks=previous.blocks;water=previous.water;terrain=previous.terrain||{};updateUI();rebuild();save();sound.effect('undo');ghost.visible=false;}
+function undo(){clearPreview();if(!history.length)return;const previous=JSON.parse(history.pop());blocks=previous.blocks;water=previous.water;terrain=previous.terrain||{};cabins=previous.cabins||[];selectedCabin=null;syncCabinPanel();updateUI();rebuild();save();sound.effect('undo');ghost.visible=false;}
 function destination(hit){
   if(!hit)return null;
   const [x,y,z]=hit.position;
@@ -791,10 +795,22 @@ function destination(hit){
 function edit(hit,remove=false,paint=false){
   if(!hit)return;
   const [x,,z]=hit.position;
+  if(hit.buildingId){
+    if(remove||tool==='erase'){commit(blocks,water,terrain,cabins.filter(b=>b.id!==hit.buildingId));selectedCabin=null;syncCabinPanel();sound.effect('remove');}
+    else {selectedCabin=hit.buildingId;selectTool('house');syncCabinPanel();setDock(true);}
+    return;
+  }
+  if(tool==='house'&&$('#building-mode').value==='cabin'&&!remove){
+    const b=cabinAt(x,z,cabinRotation,{exterior:$('#cabin-exterior').value,roof:$('#cabin-roof').value});
+    const error=placementError(b,currentVillageData());if(error){notify(error);return;}
+    commit(blocks,water,terrain,[...cabins,b]);sound.effect('wood');selectedCabin=null;syncCabinPanel();return;
+  }
+  const reserved=cabinOccupancy(cabins,true),occupied=cabinOccupancy(cabins);
+  if(!remove&&tool!=='erase'&&reserved.has(`${x},${z}`)&&!(tool==='path'&&!occupied.has(`${x},${z}`))){notify('Keep the cabin footprint and entrance clear. Tap the cabin to customize it.');return;}
   if(terrainMode()&&!remove){
     const mode=terrainMode();
     if(mode==='level'&&levelTarget===null){levelTarget=terrainLevel(terrain,x,z);$('#terrain-level').textContent=`Level target: ${(levelTarget*TERRAIN_STEP).toFixed(2)} · tap land to apply`;notify('Height sampled. Tap other tiles to level them.');return;}
-    const next=editTerrain(terrain,blocks,water,x,z,mode,levelTarget);
+    const next=editTerrain(terrain,navigationBlocks(blocks,cabins,true),water,x,z,mode,levelTarget);
     if(next)commit(blocks,water,next);else notify('Keep clear of structures and water. Height range: 0–6 steps.');return;
   }
   if(tool==='water'){
@@ -815,15 +831,20 @@ function edit(hit,remove=false,paint=false){
   if(tool==='path'&&!hit.ground&&blocks[key(...hit.position)]?.type==='path'){const next=structuredClone(blocks);next[key(...hit.position)].surface=$('#path-surface').value;commit(next);return;}
   if(paint&&!hit.ground){const k=key(...hit.position);if(['house','balcony'].includes(blocks[k]?.type)){const next=structuredClone(blocks);next[k]={...next[k],wood:$('#wood').value,roof:$('#roof').value};commit(next);}return;}
   const p=destination(hit);
+  if(p&&cabinOccupancy(cabins,true).has(`${p[0]},${p[2]}`)&&!(tool==='path'&&!cabinOccupancy(cabins).has(`${p[0]},${p[2]}`))){notify('Leave room for the cabin and its entrance.');return;}
   if(!p||!canPlace(blocks,...p,tool==='camp'&&$('#camp-piece').value!=='shelter'?'campProp':tool,water)){notify(tool==='tree'?'Trees need open, dry ground.':'Choose open ground, a roof, or an exposed wall. Build up to 8 floors.');return;}
   if(['house','balcony','camp'].includes(tool)&&!levelSite(terrain,p[0],p[2])){notify('Level a clearing around this tile before placing a structure.');return;}
   const next=structuredClone(blocks);next[key(...p)]={type:tool,wood:$('#wood').value,roof:$('#roof').value};if(tool==='balcony')next[key(...p)].cover=$('#deck-cover').value;if(tool==='path')next[key(...p)].surface=$('#path-surface').value;if(tool==='tree')next[key(...p)].species=$('#tree-species').value;if(tool==='camp'){if($('#camp-piece').value==='shelter')next[key(...p)].stage=1;else next[key(...p)]={type:'campProp',kind:$('#camp-piece').value};}if(tool==='house'&&!hit.ground&&blocks[key(...hit.position)]?.role)next[key(...p)].role=blocks[key(...hit.position)].role;commit(next);
 }
 const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2(),pickHits=[];
-function pick(e){const rect=canvas.getBoundingClientRect();pointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);camera.updateMatrixWorld(true);raycaster.setFromCamera(pointer,camera);pickHits.length=0;const hits=raycaster.intersectObjects(pickTargets,false,pickHits);for(const hit of hits){if(hit.object===ground||hit.object.userData.terrain){const x=Math.round(hit.point.x),z=Math.round(hit.point.z);return Math.abs(x)<=LIMIT&&Math.abs(z)<=LIMIT?{position:[x,0,z],normal:[0,1,0],ground:true}:null;}return {position:hit.object.userData.position,normal:hit.object.userData.normal||hit.face.normal.toArray().map(Math.round),ground:false};}return null;}
+function pick(e){const rect=canvas.getBoundingClientRect();pointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);camera.updateMatrixWorld(true);raycaster.setFromCamera(pointer,camera);pickHits.length=0;const hits=raycaster.intersectObjects(pickTargets,false,pickHits);for(const hit of hits){if(hit.object===ground||hit.object.userData.terrain){const x=Math.round(hit.point.x),z=Math.round(hit.point.z);return Math.abs(x)<=LIMIT&&Math.abs(z)<=LIMIT?{position:[x,0,z],normal:[0,1,0],ground:true}:null;}return {buildingId:hit.object.userData.buildingId,position:hit.object.userData.position,normal:hit.object.userData.normal||hit.face.normal.toArray().map(Math.round),ground:false};}return null;}
 function preview(hit){
+  if(hit?.buildingId){const b=cabins.find(b=>b.id===hit.buildingId);showCabinFootprint(b,'#fff5bf');return;}
+  if(hit&&tool==='house'&&$('#building-mode').value==='cabin'){
+    const b=cabinAt(hit.position[0],hit.position[2],cabinRotation);showCabinFootprint(b,placementError(b,currentVillageData())?'#d78469':'#fff5bf');return;
+  }
   const p=destination(hit);
-  if(p&&terrainMode()){const mode=terrainMode();ghost.visible=mode==='level'&&levelTarget===null||!!editTerrain(terrain,blocks,water,p[0],p[2],mode,levelTarget);ghost.position.set(p[0],terrainHeight(terrain,p[0],p[2])+.06,p[2]);ghost.scale.set(1,.08,1);ghost.material.color.set(mode==='lower'?'#d8b790':'#fff5bf');return;}
+  if(p&&terrainMode()){const mode=terrainMode();ghost.visible=mode==='level'&&levelTarget===null||!!editTerrain(terrain,navigationBlocks(blocks,cabins,true),water,p[0],p[2],mode,levelTarget);ghost.position.set(p[0],terrainHeight(terrain,p[0],p[2])+.06,p[2]);ghost.scale.set(1,.08,1);ghost.material.color.set(mode==='lower'?'#d8b790':'#fff5bf');return;}
   const wet=hit&&water[waterKey(hit.position[0],hit.position[2])];
   ghost.visible=!!p&&(tool==='water'?!!waterEdit(water,blocks,p[0],p[2],$('#water-kind').value,LIMIT):tool==='erase'?(!hit.ground||!!wet):tool==='camp'&&blocks[key(...p)]?.type==='camp'?$('#camp-piece').value==='shelter'&&!!upgradeCamp(blocks,key(...p)):canPlace(blocks,...p,tool,water));
   if(tool==='water'&&hit){
@@ -902,7 +923,7 @@ canvas.addEventListener('pointerup',e=>{
   if(e.pointerType==='touch'){
     const contact=touchContacts.get(e.pointerId);
     cancelHold();touchContacts.delete(e.pointerId);
-    if(contact&&!contact.held&&!contact.moved&&Math.hypot(e.clientX-contact.x,e.clientY-contact.y)<=8&&performance.now()-contact.time<500){edit(pick(e));if(dock.dataset.open==='true')setDock(false);}
+    if(contact&&!contact.held&&!contact.moved&&Math.hypot(e.clientX-contact.x,e.clientY-contact.y)<=8&&performance.now()-contact.time<500){edit(pick(e));if(!selectedCabin&&dock.dataset.open==='true')setDock(false);}
     ghost.visible=false;
     return;
   }
@@ -919,7 +940,7 @@ canvas.addEventListener('mousedown',e=>{if(e.button===1)e.preventDefault();});
 canvas.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault();});
 canvas.addEventListener('pointerleave',()=>{ghost.visible=false;});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
-function selectTool(value){clearPreview();cancelHold();closeTouchMenu();tool=value;$('#water-options').hidden=value!=='water';$('#building-materials').hidden=value!=='house';$('#role-options').hidden=value!=='role';$('#tree-options').hidden=value!=='tree';$('#path-options').hidden=value!=='path';$('#deck-options').hidden=value!=='balcony';$('#camp-options').hidden=value!=='camp';$('#terrain-options').hidden=value!=='terrain';document.querySelectorAll('[data-tool]').forEach(b=>{b.classList.toggle('active',b.dataset.tool===tool);b.setAttribute('aria-pressed',String(b.dataset.tool===tool));});ghost.visible=false;}
+function selectTool(value){if(value!=='house')selectedCabin=null;clearPreview();cancelHold();closeTouchMenu();tool=value;$('#water-options').hidden=value!=='water';$('#building-materials').hidden=value!=='house';syncCabinPanel();$('#role-options').hidden=value!=='role';$('#tree-options').hidden=value!=='tree';$('#path-options').hidden=value!=='path';$('#deck-options').hidden=value!=='balcony';$('#camp-options').hidden=value!=='camp';$('#terrain-options').hidden=value!=='terrain';document.querySelectorAll('[data-tool]').forEach(b=>{b.classList.toggle('active',b.dataset.tool===tool);b.setAttribute('aria-pressed',String(b.dataset.tool===tool));});ghost.visible=false;}
 document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>selectTool(b.dataset.tool));
 $('#undo').onclick=undo;
 document.querySelectorAll('.dock select').forEach(select=>select.addEventListener('change',clearPreview));
@@ -980,7 +1001,7 @@ addEventListener('keydown',e=>{if(['SELECT','INPUT'].includes(document.activeEle
 function setAudioPanel(open){
  const panel=$('#audio-panel');if(panel.hidden===open)sound.effect(open?'menuOpen':'menuClose');
  panel.hidden=!open;$('#audio-toggle').setAttribute('aria-expanded',String(open));
- if(open){clearPreview();cancelHold();closeTouchMenu();if(dock.dataset.open==='true')setDock(false);}
+ if(open){clearPreview();cancelHold();closeTouchMenu();if(!selectedCabin&&dock.dataset.open==='true')setDock(false);}
 }
 for(const input of document.querySelectorAll('[data-volume]')){
  const key=input.dataset.volume;input.value=Math.round(sound.preferences[key]*100);
@@ -1008,10 +1029,35 @@ $('#audio-close').onclick=()=>{setAudioPanel(false);$('#audio-toggle').focus();}
 document.addEventListener('pointerdown',e=>{if(!$('#audio-panel').hidden&&!$('#audio-panel').contains(e.target)&&!$('#audio-toggle').contains(e.target))setAudioPanel(false);},true);
 addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#audio-panel').hidden){setAudioPanel(false);$('#audio-toggle').focus();}});
 function villageMessage(message){$('#village-message').textContent=message;notify(message);}
-function currentVillageData(){return {blocks,water,terrain,peak};}
+const cabinSelection=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(2.03,.06,2.03)),new THREE.LineBasicMaterial({color:'#f6df97'}));cabinSelection.visible=false;scene.add(cabinSelection);
+const cabinView=createCabinView({box,beam:timberBeam,material,roofingMaterial,roofDetails});scene.add(cabinView.group);
+function showCabinFootprint(b,color){
+ const cells=footprint(b),xs=cells.map(c=>c[0]),zs=cells.map(c=>c[1]);
+ ghost.visible=true;ghost.position.set((Math.min(...xs)+Math.max(...xs))/2,terrainHeight(terrain,...b.position)+.08,(Math.min(...zs)+Math.max(...zs))/2);ghost.scale.set(2,.12,2);ghost.material.color.set(color);
+}
+function syncCabinPanel(){
+ const b=cabins.find(b=>b.id===selectedCabin);if(!b)selectedCabin=null;
+ cabinSelection.visible=!!b;
+ if(b){const cells=footprint(b);cabinSelection.position.set(cells.reduce((n,c)=>n+c[0],0)/4,terrainHeight(terrain,...b.position)+.12,cells.reduce((n,c)=>n+c[1],0)/4);}
+ if(b){$('#building-mode').value='cabin';$('#cabin-exterior').value=b.appearance.exterior;$('#cabin-roof').value=b.appearance.roof;}
+ const active=$('#building-mode').value==='cabin';
+ $('#cabin-options').hidden=!active;$('#freeform-options').hidden=active;
+ $('#cabin-status').textContent=b?'Selected cabin · finishes apply immediately':'Timber Guest Cabin · 2 × 2 · tap dry, level ground';
+ $('#cabin-new').hidden=!b;$('#cabin-rotate').disabled=!!b;
+ $('#cabin-rotate').textContent=`↻ Rotate · ${cabinRotation*90}°`;
+}
+$('#building-mode').onchange=()=>{selectedCabin=null;syncCabinPanel();clearPreview();};
+$('#cabin-new').onclick=()=>{selectedCabin=null;syncCabinPanel();};
+$('#cabin-rotate').onclick=()=>{cabinRotation=(cabinRotation+1)%4;syncCabinPanel();clearPreview();};
+for(const id of ['cabin-exterior','cabin-roof'])$('#'+id).onchange=()=>{
+ const b=cabins.find(b=>b.id===selectedCabin);if(!b)return;
+ const next=customizeCabin(b,{exterior:$('#cabin-exterior').value,roof:$('#cabin-roof').value});
+ commit(blocks,water,terrain,cabins.map(old=>old.id===b.id?next:old));sound.effect('wood');syncCabinPanel();
+};
+function currentVillageData(){return {schemaVersion:2,blocks,water,terrain,peak,buildings:cabins};}
 function loadVillage(slot){
  if(!slot)return;
- ({blocks,water,terrain,peak}=slot.data);history=[];levelTarget=null;
+ ({blocks,water,terrain,peak,buildings:cabins}=slot.data);history=[];selectedCabin=null;syncCabinPanel();levelTarget=null;
  resetPointerInteraction();updateUI();rebuild();recenter();
 }
 function refreshVillages(){
@@ -1039,18 +1085,18 @@ $('#village-toggle').onclick=()=>{resetPointerInteraction();setAudioPanel(false)
 $('#village-close').onclick=()=>$('#village-dialog').close();
 $('#village-create').onclick=()=>{try{if(!save())return;loadVillage(villages.create('New village'));refreshVillages();}catch(error){villageMessage(error.message);}};
 $('#village-rename').onclick=()=>{try{villages.rename(villages.active.id,$('#village-name').value);refreshVillages();}catch(error){villageMessage(error.message);}};
-$('#village-export').onclick=()=>downloadVillage({version:1,name:villages.active?.name||'Recovered village',data:currentVillageData()},'stillwater-village.json');
+$('#village-export').onclick=()=>downloadVillage({version:2,name:villages.active?.name||'Recovered village',data:currentVillageData()},'stillwater-village.json');
 $('#village-recovery').onclick=()=>{const blob=new Blob([villages.recovery()],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='stillwater-original-save.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 $('#village-import').onclick=()=>$('#village-file').click();
 $('#village-file').onchange=async e=>{
  const file=e.target.files[0];e.target.value='';if(!file)return;
- try{if(file.size>2_000_000)throw new Error('Village file is too large.');const value=JSON.parse(await file.text());if(value.version!==1)throw new Error('Unsupported village file version.');if(!save())return;loadVillage(villages.create(value.name,value.data));refreshVillages();}catch(error){villageMessage(error.message);}
+ try{if(file.size>2_000_000)throw new Error('Village file is too large.');const value=JSON.parse(await file.text());if(value.version!==2)throw new Error('Unsupported village file version.');if(!save())return;loadVillage(villages.create(value.name,value.data));refreshVillages();}catch(error){villageMessage(error.message);}
 };
 $('#village-delete').onclick=()=>{$('#village-delete-label').textContent=`Delete “${villages.active.name}” from this device? Export a copy first if you want to keep it.`;$('#village-delete-confirm').hidden=false;};
 $('#village-delete-cancel').onclick=()=>$('#village-delete-confirm').hidden=true;
 $('#village-delete-yes').onclick=()=>{try{villages.remove(villages.active.id);const slot=villages.active||villages.create('My village');loadVillage(slot);refreshVillages();}catch(error){villageMessage(error.message);}};
 function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);}addEventListener('resize',resize);resize();
-updateUI();rebuild();
+syncCabinPanel();updateUI();rebuild();
 if(villages.error)notify('Saved villages need recovery. Open Villages to export a copy; the original save has not been replaced.');
 renderer.setAnimationLoop(t=>{
   controls.update();waterView.animate(t,reducedMotion.matches);

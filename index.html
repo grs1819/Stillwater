@@ -83,10 +83,16 @@
               </div>
             </div>
             <div id="building-materials" class="material-group">
-              <label for="wood">TIMBER</label>
+              <label for="building-mode">BUILDING</label><select id="building-mode"><option value="cabin">Timber Guest Cabin</option><option value="freeform">Freeform building</option></select>
+              <div id="cabin-options"><p id="cabin-status" role="status"></p>
+              <label for="cabin-exterior">EXTERIOR</label><select id="cabin-exterior"><option value="honey">Honey timber</option><option value="birch">Pale birch</option></select>
+              <label for="cabin-roof">ROOF</label><select id="cabin-roof"><option value="moss">Living moss · green</option><option value="slate">Standing seam · slate blue</option></select>
+              <button id="cabin-rotate" class="secondary">↻ Rotate · 0°</button><button id="cabin-new" class="secondary" hidden>Place another cabin</button></div>
+              <div id="freeform-options" hidden><label for="wood">TIMBER</label>
               <select id="wood"><option value="oak">Honey oak</option><option value="birch" disabled>Silver birch · 6 cottages</option><option value="cedar" disabled>Red cedar · 12 cottages</option></select>
               <label for="roof">COLOR</label>
               <select id="roof" aria-label="Roof color"><option value="moss">Forest green</option><option value="clay" disabled>Rust red · 9 cottages</option><option value="slate" disabled>Slate blue · 12 cottages</option></select>
+            </div>
             </div>
             <div id="deck-options" class="water-options" hidden>
               <label for="deck-cover">PORCH COVER</label>
@@ -161,6 +167,6 @@
     <button id="touch-cancel" type="button" aria-label="Cancel"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg><span>Cancel</span></button>
   </section>
   <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
-  <script type="module" src="./app.js?v=village-slots-1"></script>
+  <script type="module" src="./app.js?v=blueprint-1"></script>
 </body>
 </html>

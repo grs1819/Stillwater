@@ -59,3 +59,15 @@ behavior without adding a browser dependency to the shipped game.
 
 `scripts/check-villages.mjs` covers migration, slot switching, names, deletion,
 export/import, reload persistence and mobile dialog layout.
+
+## Stillwater 2.0 — approved first prototype
+The next direction is a cozy nature retreat with blueprint-based buildings.
+The first beta milestone is one Timber Guest Cabin; see `BLUEPRINTS.md` for its
+data model, controls, validation and limits. New schema-2 worlds use isolated
+storage and do not migrate old progress. Production saves remain untouched.
+
+Future (not implemented): Gold, Settlement Renown, Cultivation, Construction,
+Hospitality and Conservation; later industries and additional skills. Renovations
+retain building identity and functional state. Future offline operations start
+with a four-hour cap and a 25% XP bonus for one selected skill. Neighboring parcels
+and mobile performance improvements should precede large settlement expansion.
