@@ -1,9 +1,11 @@
 import * as THREE from 'three';
 import {EXTERIORS,FINISHES} from './blueprints.js';
 // Reuse the game's timber beams, cached materials, roofing finishes and details.
-export function createCabinView({box,beam,material,roofingMaterial,roofDetails}){
+export function createCabinView({box,beam,material,roofingMaterial,roofDetails},preview=false){
  const group=new THREE.Group(),cache=new Map();
- function dispose(g){g.traverse(o=>{if(o.isMesh)o.geometry.dispose();});}
+ const ghostMaterial=preview?new THREE.MeshBasicMaterial({color:0x9bc79b,transparent:true,opacity:.38,depthWrite:false,side:THREE.DoubleSide}):null;
+ const outlineMaterial=preview?new THREE.LineBasicMaterial({color:0x507e57,transparent:true,opacity:.9}):null;
+ function dispose(g){g.traverse(o=>{if(o.geometry)o.geometry.dispose();});}
  function build(b){
   const g=new THREE.Group(),{wall,frame}=EXTERIORS[b.appearance.exterior],finish=FINISHES[b.appearance.roof];
   box(g,1.94,.16,1.94,.5,.08,.5,'#aaa58d');
@@ -34,10 +36,15 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails})
   for(const z of [-.41,1.41]){
    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute([-.4,1.49,z,1.4,1.49,z,.5,2.13,z, .5,2.13,z,1.4,1.49,z,-.4,1.49,z],3));geo.computeVertexNormals();g.add(new THREE.Mesh(geo,material(wall)));
   }
-  g.traverse(o=>{if(o.isMesh)o.userData={buildingId:b.id,position:[...b.position.slice(0,1),0,b.position[1]]};});
+  g.traverse(o=>{if(o.isMesh&&preview){o.material=ghostMaterial;o.castShadow=false;o.receiveShadow=false;}if(o.isMesh)o.userData={buildingId:b.id,position:[...b.position.slice(0,1),0,b.position[1]]};});
+  if(preview){
+   for(const mesh of [g.children[1],roof,g.children.find(o=>o.isMesh&&o.geometry.parameters?.height===.94)]){
+    const outline=new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry),outlineMaterial);outline.position.copy(mesh.position);outline.quaternion.copy(mesh.quaternion);g.add(outline);
+   }
+  }
   return g;
  }
- return {group,update(buildings,height){
+ return {group,setValid(valid){if(ghostMaterial){ghostMaterial.color.set(valid?'#9bc79b':'#d78469');outlineMaterial.color.set(valid?'#507e57':'#b95c48');}},update(buildings,height){
   const ids=new Set(buildings.map(b=>b.id));for(const [id,entry]of cache)if(!ids.has(id)){group.remove(entry.mesh);dispose(entry.mesh);cache.delete(id);}
   for(const b of buildings){const signature=JSON.stringify(b.appearance);let entry=cache.get(b.id);if(entry?.signature!==signature){if(entry){group.remove(entry.mesh);dispose(entry.mesh);}entry={signature,mesh:build(b)};cache.set(b.id,entry);group.add(entry.mesh);}
    entry.mesh.position.set(b.position[0],height(...b.position),b.position[1]);entry.mesh.rotation.y=b.rotation*Math.PI/2;
