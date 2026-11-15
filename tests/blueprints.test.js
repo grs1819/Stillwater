@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {emptyWorld,validateWorld,cabinAt,footprint,entrance,placementError,customizeCabin,navigationBlocks} from '../blueprints.js';
+import {DESIGNS,renovationQuote,renovateCabin,emptyWorld,validateWorld,cabinAt,footprint,entrance,placementError,customizeCabin,navigationBlocks} from '../blueprints.js';
 import {createVillageStore} from '../village-store.js';
 import {editTerrain} from '../terrain.js';
 const id='12345678-1234-1234-1234-123456789abc';
@@ -34,4 +34,16 @@ test('2.0 slots never migrate or overwrite previous production data',()=>{
  const w=emptyWorld();w.buildings=[cabin()];store.save(w);store=createVillageStore(options);assert.deepEqual(store.active.data,w);
  assert.equal(map.get('mosswood-v2'),'original');assert.equal(map.get('stillwater-beta-v2'),'beta-original');
  const exported=JSON.parse(JSON.stringify({version:2,data:store.active.data}));store.create('Imported',exported.data);assert.equal(store.active.data.buildings[0].id,id);
+});
+
+test('three designs renovate without changing identity, transform or functional state',()=>{
+ const original=cabin(3);original.gameplay={workers:['one'],equipment:{stove:2},upgrades:{capacity:3},inventory:{logs:4},production:{progress:.6}};
+ const snapshot=structuredClone(original);
+ for(const design of Object.keys(DESIGNS))for(const exterior of ['honey','birch'])for(const roof of ['moss','slate']){
+  const next=renovateCabin(original,{design,appearance:{exterior,roof}});
+  assert.equal(next.id,original.id);assert.deepEqual(next.position,original.position);assert.equal(next.rotation,3);assert.deepEqual(next.gameplay,original.gameplay);
+  assert.deepEqual(footprint(next),footprint(original));assert.deepEqual(entrance(next),entrance(original));assert.deepEqual(renovationQuote(design),{cost:0,constructionLevel:0});
+  const world=emptyWorld();world.buildings=[next];assert.deepEqual(validateWorld(JSON.parse(JSON.stringify(world))),world);
+ }
+ assert.deepEqual(original,snapshot);assert.throws(()=>renovateCabin(original,{design:'missing'}));assert.throws(()=>renovateCabin(original,{design:'toString'}));
 });

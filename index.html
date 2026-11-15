@@ -98,9 +98,10 @@
             <div id="building-materials" class="material-group">
               <label for="building-mode">BUILDING</label><select id="building-mode"><option value="cabin">Timber Guest Cabin</option><option value="freeform">Freeform building</option></select>
               <div id="cabin-options"><p id="cabin-status" role="status"></p>
+              <label for="cabin-design">DESIGN</label><select id="cabin-design"><option value="gable">Frontier Cabin</option><option value="woodland">Woodland Cottage</option><option value="craftsman">Craftsman Lodge</option></select>
               <label for="cabin-exterior">EXTERIOR</label><select id="cabin-exterior"><option value="honey">Honey timber</option><option value="birch">Pale birch</option></select>
               <label for="cabin-roof">ROOF</label><select id="cabin-roof"><option value="moss">Living moss · green</option><option value="slate">Standing seam · slate blue</option></select>
-              <button id="cabin-rotate" class="secondary">↻ Rotate · 0°</button><button id="cabin-new" class="secondary" hidden>Place another cabin</button></div>
+              <button id="cabin-rotate" class="secondary">↻ Rotate · 0°</button><button id="cabin-new" class="secondary" hidden>Place another cabin</button><div id="renovation-actions" hidden><button id="renovation-confirm" class="secondary" disabled>Confirm · Free</button><button id="renovation-cancel" class="secondary" disabled>Cancel</button></div></div>
               <div id="freeform-options" hidden><label for="wood">TIMBER</label>
               <select id="wood"><option value="oak">Honey oak</option><option value="birch" disabled>Silver birch · 6 cottages</option><option value="cedar" disabled>Red cedar · 12 cottages</option></select>
               <label for="roof">COLOR</label>
@@ -184,6 +185,6 @@
     <div><button id="cabin-placement-rotate" class="secondary">↻ Rotate</button><button id="cabin-place" class="secondary">Place cabin</button><button id="cabin-placement-cancel" class="secondary">Cancel</button></div>
   </section>
   <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
-  <script type="module" src="./app.js?v=cabin-preview-1"></script>
+  <script type="module" src="./app.js?v=cabin-designs-1"></script>
 </body>
 </html>
