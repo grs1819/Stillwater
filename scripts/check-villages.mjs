@@ -3,9 +3,9 @@ const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',args:['--no-sandbox','--enable-unsafe-swiftshader']});
 try{
  const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});const errors=[];page.on('pageerror',e=>errors.push(e.message));
- const seed={schemaVersion:2,buildings:[],blocks:{'0,0,0':{type:'house',wood:'cedar',roof:'slate',role:'inn'}},water:{'1,1':'lake'},terrain:{'3,3':1},peak:12};
+ const seed={schemaVersion:2,economy:{version:1,gold:500,activeMs:0},buildings:[],blocks:{'0,0,0':{type:'house',wood:'cedar',roof:'slate',role:'inn'}},water:{'1,1':'lake'},terrain:{'3,3':1},peak:12};
  await page.addInitScript(seed=>{if(!sessionStorage.getItem('seeded')){localStorage.setItem('mosswood-v2','production-sentinel');localStorage.setItem('stillwater-2-v1-slots-guest',JSON.stringify({version:1,activeId:'12345678-1234-1234-1234-123456789abc',slots:[{id:'12345678-1234-1234-1234-123456789abc',name:'My village',revision:1,cloudRevision:0,dirty:true,data:seed}]}));sessionStorage.setItem('seeded','1');}},seed);
- await page.route('**/app.js*',async route=>{const response=await route.fetch();await route.fulfill({response,body:await response.text()+'\nrenderer.setAnimationLoop(null);renderer.render(scene,camera);window.probe={data:currentVillageData,villages,edit};'});});
+ await page.route('**/app.js*',async route=>{const response=await route.fetch();await route.fulfill({response,body:await response.text()+'\nclearInterval(incomeTimer);renderer.setAnimationLoop(null);renderer.render(scene,camera);window.probe={data:currentVillageData,villages,edit};'});});
  await page.goto(process.env.STILLWATER_URL||'http://localhost:5193');await page.waitForFunction(()=>window.probe);
  assert.deepEqual(await page.evaluate(()=>probe.data()),seed);assert.equal(await page.evaluate(()=>localStorage.getItem('mosswood-v2')),'production-sentinel');
  await page.locator('#village-toggle').tap();await page.locator('#village-name').fill('Original town');await page.locator('#village-rename').tap();

@@ -42,7 +42,7 @@ test('three designs renovate without changing identity, transform or functional 
  for(const design of Object.keys(DESIGNS))for(const exterior of ['honey','birch'])for(const roof of ['moss','slate']){
   const next=renovateCabin(original,{design,appearance:{exterior,roof}});
   assert.equal(next.id,original.id);assert.deepEqual(next.position,original.position);assert.equal(next.rotation,3);assert.deepEqual(next.gameplay,original.gameplay);
-  assert.deepEqual(footprint(next),footprint(original));assert.deepEqual(entrance(next),entrance(original));assert.deepEqual(renovationQuote(design),{cost:0,constructionLevel:0});
+  assert.deepEqual(footprint(next),footprint(original));assert.deepEqual(entrance(next),entrance(original));assert.deepEqual(renovationQuote(design),{cost:75,constructionLevel:0});
   const world=emptyWorld();world.buildings=[next];assert.deepEqual(validateWorld(JSON.parse(JSON.stringify(world))),world);
  }
  assert.deepEqual(original,snapshot);assert.throws(()=>renovateCabin(original,{design:'missing'}));assert.throws(()=>renovateCabin(original,{design:'toString'}));

@@ -5,12 +5,12 @@ try{
  for(const mobile of [false,true]){
   const page=await browser.newPage({viewport:mobile?{width:390,height:844}:{width:1280,height:850},isMobile:mobile,hasTouch:mobile});const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/app.js*',async route=>{const response=await route.fetch();await route.fulfill({response,body:await response.text()+`
-renderer.setAnimationLoop(null);controls.enableDamping=false;
+clearInterval(incomeTimer);renderer.setAnimationLoop(null);controls.enableDamping=false;
 const visual=g=>{const a=[];g.traverse(o=>{if(o.isMesh)a.push({vertices:Array.from(o.geometry.attributes.position.array),position:o.position.toArray(),quaternion:o.quaternion.toArray(),color:o.material.color.getHexString()});});return JSON.stringify(a);};
 window.probe={data:currentVillageData,save,undo,edit,selectTool,render:()=>renderer.render(scene,camera),select:()=>edit({position:[0,0,0],buildingId:cabins[0].id}),
  functional:()=>{cabins[0].gameplay={workers:['one'],equipment:{stove:2},inventory:{logs:4},progress:.6};save();},
  draft:()=>renovationDraft,visible:()=>cabinView.group.children[0].visible,ghost:()=>visual(cabinGhost.group),actual:(i=0)=>visual(cabinView.group.children[i]),
- gallery:()=>{selectedCabin=null;cancelRenovation(false);const designs=['gable','woodland','craftsman'];cabins=designs.map((design,i)=>renovateCabin(cabinAt(-4+i*4,0),{design,appearance:{exterior:'honey',roof:'moss'}}));rebuild();setDock(false);renderer.render(scene,camera);},
+ gallery:()=>{economy.gold=2000;selectedCabin=null;cancelRenovation(false);const designs=['gable','woodland','craftsman'];cabins=designs.map((design,i)=>renovateCabin(cabinAt(-4+i*4,0),{design,appearance:{exterior:'honey',roof:'moss'}}));rebuild();setDock(false);renderer.render(scene,camera);},
  bounds:()=>{const g=cabinGhost.group.children[0];g.updateMatrixWorld(true);const inverse=new THREE.Matrix4().copy(g.matrixWorld).invert();const vertices=[];g.traverse(o=>{if(o.isMesh){const a=o.geometry.attributes.position;for(let i=0;i<a.count;i++){const v=new THREE.Vector3().fromBufferAttribute(a,i).applyMatrix4(o.matrixWorld).applyMatrix4(inverse);if(v.x<-.501||v.x>1.501||v.z<-.501||v.z>1.501&&(Math.abs(v.x)>.501||v.z>2.501))vertices.push(v.toArray());}}});return vertices;},
  point:(x=0,z=0)=>{camera.updateMatrixWorld(true);const p=new THREE.Vector3(x,0,z).project(camera);return {x:(p.x+1)*innerWidth/2,y:(1-p.y)*innerHeight/2};}};`});});
   await page.goto(process.env.STILLWATER_URL||'http://localhost:5203');await page.waitForFunction(()=>window.probe);

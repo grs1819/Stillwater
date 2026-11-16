@@ -2,7 +2,7 @@ import http from 'node:http';
 import {MUSIC_TRACKS} from './audio.js';
 import {readFile} from 'node:fs/promises';
 const files = {
-  '/blueprints.js':'blueprints.js','/cabin-view.js':'cabin-view.js',
+  '/economy.js':'economy.js','/blueprints.js':'blueprints.js','/cabin-view.js':'cabin-view.js',
   ...Object.fromEntries(MUSIC_TRACKS.map(track=>[track.src.slice(1),track.src.slice(2)])),
   ...Object.fromEntries(['accounts.js','account-config.js','cloud-sync.js','vendor/supabase.js'].map(path=>['/'+path,path])),
   '/village-store.js':'village-store.js', '/audio.js':'audio.js', '/music-player.js':'music-player.js',
