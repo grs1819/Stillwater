@@ -219,3 +219,12 @@ button{touch-action:manipulation}
 @media(max-width:600px){#cabin-options select{min-height:38px}#cabin-options #cabin-new{min-height:36px}#renovation-actions button{min-height:44px}.dock-panel:has(#building-materials:not([hidden])){max-height:min(55dvh,430px)}}
 
 @media(max-width:600px){.dock.cabin-context .tool-group,.dock.cabin-context #building-mode,.dock.cabin-context label[for="building-mode"]{display:none}.dock.cabin-context #building-materials{border-top:0;padding-top:0}}
+
+/* Compact currency and explainable appeal in the existing status corner. */
+header .economy-status{pointer-events:auto;position:relative;display:block;min-width:148px;max-width:190px;padding:8px 11px;text-align:left;white-space:normal;line-height:1.35}
+.gold-row{display:flex;align-items:center;gap:5px;font-size:15px;font-weight:600}.gold-label{font-size:10px;font-weight:400}#gold-feedback{font-size:11px;font-weight:500}#gold-feedback.gain{color:#547c43}#gold-feedback.spent{color:#95694b}
+.economy-status #population{display:block;font-size:9px;margin:1px 0 0;color:#658066}#appeal-summary{font-size:10px;cursor:pointer;list-style:none;padding:3px 0}#appeal-summary::-webkit-details-marker{display:none}
+.appeal-panel{position:absolute;right:0;top:calc(100% + 6px);z-index:40;width:min(230px,calc(100vw - 24px));padding:13px;background:var(--paper);border:1px solid #c3d1b4;border-radius:15px;box-shadow:0 4px 18px #233f3326;font-size:12px}.appeal-panel strong{display:block;margin-bottom:6px}.appeal-panel p{font-size:10px;line-height:1.5;margin:8px 0 0}
+.audio-toggle{top:calc(90px + env(safe-area-inset-top))}.village-toggle{top:calc(140px + env(safe-area-inset-top))}.audio-panel{top:calc(140px + env(safe-area-inset-top))}
+#cabin-options #cabin-price{grid-row:2;grid-column:1/-1;margin:0;font-size:10px;line-height:1.35}#cabin-options label[for="cabin-design"],#cabin-options #cabin-design{grid-row:3}#cabin-options label[for="cabin-exterior"],#cabin-options #cabin-exterior{grid-row:4}#cabin-options label[for="cabin-roof"],#cabin-options #cabin-roof{grid-row:5}#cabin-options #cabin-rotate,#cabin-options #cabin-new{grid-row:6}#renovation-funds{grid-row:7;grid-column:1/-1;margin:0;font-size:11px;color:#925b44}#renovation-funds:empty{display:none}#renovation-actions{grid-row:8}
+@media(max-width:600px){header .economy-status{min-width:136px;max-width:160px;padding:6px 9px}.gold-row{font-size:14px}.economy-status #population{font-size:8px}}
