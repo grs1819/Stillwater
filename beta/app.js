@@ -112,7 +112,7 @@ let water=state.water,terrain=state.terrain||{},levelTarget=null;
 const waterView=createWaterView(scene,material,box);
 const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
 let waterAnalysis;
-let cabins=state.buildings,selectedCabin=null,cabinRotation=0,pendingCabin=null,renovationDraft=null;
+let cabins=state.buildings,selectedCabin=null,selectedFreeform=null,inspectFreeform=false,cabinRotation=0,pendingCabin=null,renovationDraft=null;
 let blocks=state.blocks,peak=state.peak,history=[],tool='house',pointerDown=null,hoverHit=null;
 const buildings=new THREE.Group();scene.add(buildings);
 const villagers=createVillagers(scene,material);
@@ -138,11 +138,13 @@ function updateEconomyUI(){
  $('#appeal-breakdown').replaceChildren(...Object.entries(appeal.parts).map(([label,value])=>{const row=document.createElement('div');row.textContent=`${label}: ${value}`;return row;}));
  $('#business-overview').textContent=`${report.guests} guests staying · demand for ${report.demand}. Baseline: +${report.baseline*perMinute} Gold/min; businesses: +${(income-report.baseline)*perMinute} Gold/min.`;
  const original=cabins.find(b=>b.id===selectedCabin),cost=original&&renovationDraft?renovationCost(original,renovationDraft):0,definition=BLUEPRINTS[original?.blueprint||placementBlueprint()];
- $('#cabin-price').textContent=original?`Design change: ${ECONOMY.renovationCost} Gold · finishes free · removal refund: ${removalRefund(original)} Gold`:`${definition.name}: ${definition.cost} Gold · removal refund: ${Math.floor(definition.cost*ECONOMY.refundRate)} Gold`;
+ $('#cabin-price').textContent=original?`Design change: ${ECONOMY.renovationCost} Gold`:`${definition.cost} Gold · 2 × 2`;
  $('#renovation-confirm').textContent=cost?`Confirm · ${cost} Gold`:'Confirm · Free';$('#renovation-confirm').disabled=!renovationDraft||!!fundsError(cost);
  $('#renovation-funds').textContent=renovationDraft?(fundsError(cost)||''):'';
  $('#cabin-place').textContent=`Place · ${definition.cost} Gold`;
- $('#business-panel').hidden=!original;
+ $('#business-summary').hidden=!original;$('#business-toggle').hidden=!original;$('#cabin-price').hidden=!!original;$('#renovation-price').hidden=!original;
+ $('#renovation-price').textContent=original?`Design ${ECONOMY.renovationCost} Gold · finishes free · removal refund ${removalRefund(original)} Gold`:'';
+ if(!original)setBuildingDetail($('#appearance-panel').hidden?null:'appearance');
  if(original){
   const row=report.rows.find(r=>r.id===original.id),quote=upgradeQuote(original);
   $('#business-summary').textContent=`${row.shop?'Customers':'Guests'} ${row.shop?row.customers:row.guests}/${row.capacity} · +${row.income*perMinute} Gold/min`;
@@ -167,7 +169,7 @@ function save(data=currentVillageData()){
  catch(error){villageMessage(error.message+' Keep this tab open and export your village.');return false;}
 }
 
-function updateUI(){const n=cottageCount(blocks);peak=Math.max(peak,n);const next=milestones.find(m=>peak<m.n);$('#population').textContent=`${(peak>=3?n*2:0)+Object.values(blocks).filter(b=>b.type==='camp').length*2} villagers`;$('#next-title').textContent=next?.name||'Room to keep growing';$('#progress-number').textContent=next?`${n} / ${next.n}`:`${n} cottages`;$('#progress').style.width=`${next?Math.min(100,n/next.n*100):100}%`;$('#next-description').textContent=next?`Grow to ${next.n} cottage plots to make your next discovery.`:'All discoveries unlocked. Make this clearing your own.';$('#discovery-count').textContent=`${milestones.filter(m=>peak>=m.n).length} / 4`;$('#journal').innerHTML=milestones.map(m=>`<div>${peak>=m.n?'✦':'○'} ${m.n} cottages · ${m.name}</div>`).join('');for(const [id,values]of Object.entries({wood:{birch:6,cedar:12},roof:{clay:9,slate:12}}))for(const option of $(`#${id}`).options)if(values[option.value])option.disabled=peak<values[option.value];$('#undo').disabled=!history.length;updateEconomyUI();}
+function updateUI(){const n=cottageCount(blocks);peak=Math.max(peak,n);const next=milestones.find(m=>peak<m.n);$('#population').textContent=`${(peak>=3?n*2:0)+Object.values(blocks).filter(b=>b.type==='camp').length*2} villagers`;$('#next-title').textContent=next?.name||'Room to keep growing';$('#progress-number').textContent=next?`${n} / ${next.n}`:`${n} cottages`;$('#progress').style.width=`${next?Math.min(100,n/next.n*100):100}%`;$('#next-description').textContent=next?`Grow to ${next.n} cottage plots to make your next discovery.`:'All discoveries unlocked. Make this clearing your own.';$('#discovery-count').textContent=`${milestones.filter(m=>peak>=m.n).length} / 4`;$('#journal').innerHTML=milestones.map(m=>`<div>${peak>=m.n?'✦':'○'} ${m.n} cottages · ${m.name}</div>`).join('');for(const [id,values]of Object.entries({wood:{birch:6,cedar:12},roof:{clay:9,slate:12}}))for(const option of $(`#${id}`).options)if(values[option.value])option.disabled=peak<values[option.value];$('#undo').disabled=!history.length;updateEconomyUI();syncFreeformPanel();}
 const ghost=new THREE.Mesh(new THREE.BoxGeometry(1.01,.96,1.01),new THREE.MeshBasicMaterial({color:'#fff5bf',transparent:true,opacity:.28,depthWrite:false}));ghost.visible=false;scene.add(ghost);
 const invisible=new THREE.MeshBasicMaterial({visible:false});
 const timber={oak:'#c6a171',birch:'#ded4b3',cedar:'#b77d61'};
@@ -848,7 +850,7 @@ function destination(hit){
   if(!hit)return null;
   const [x,y,z]=hit.position;
   if(terrainMode())return [x,0,z];
-  if(tool==='role')return null;
+  if(inspectFreeform)return null;
   if(tool==='camp')return hit.ground?[x,0,z]:blocks[key(x,y,z)]?.type==='camp'?[x,y,z]:null;
   if(tool==='water')return[x,0,z];
   if(hit.ground)return[x,0,z];
@@ -860,9 +862,10 @@ function destination(hit){
 function edit(hit,remove=false,paint=false){
   if(!hit)return;
   const [x,,z]=hit.position;
+  if(inspectFreeform&&!remove){inspectBuilding(hit);return;}
   if(hit.buildingId){
     if(remove||tool==='erase'){const cabin=cabins.find(b=>b.id===hit.buildingId);if(!cabin)return;if(commit(blocks,water,terrain,cabins.filter(b=>b.id!==hit.buildingId),removalRefund(cabin))){selectedCabin=null;syncCabinPanel();sound.effect('remove');}}
-    else {cancelRenovation(false);selectedCabin=hit.buildingId;selectTool('house');syncCabinPanel();setDock(true);}
+    else {cancelRenovation(false);setBuildingDetail(null);selectedFreeform=null;selectedCabin=hit.buildingId;selectTool('house');syncCabinPanel();setDock(true);}
     return;
   }
   if(tool==='house'&&$('#building-mode').value!=='freeform'&&!remove){
@@ -891,7 +894,6 @@ function edit(hit,remove=false,paint=false){
     else commit(removeBlock(blocks,key(...hit.position)));
     return;
   }
-  if(tool==='role'){const next=assignRole(blocks,key(...hit.position),$('#building-role').value);if(next){commit(next);notify('Building purpose updated. Connect paths to welcome visitors.');}else notify('Choose an existing building.');return;}
   if(tool==='camp'&&$('#camp-piece').value==='shelter'&&!hit.ground&&blocks[key(...hit.position)]?.type==='camp'){const next=upgradeCamp(blocks,key(...hit.position));if(next){commit(next);notify(next[key(...hit.position)].stage===2?'A proper tent, ready for adventure.':'Your glamping retreat is ready.');}else notify('This campsite is fully upgraded.');return;}
   if(tool==='balcony'&&!hit.ground&&blocks[key(...hit.position)]?.type==='balcony'){const next=structuredClone(blocks);next[key(...hit.position)]={...next[key(...hit.position)],cover:$('#deck-cover').value,wood:$('#wood').value,roof:$('#roof').value};commit(next);return;}
   if(tool==='path'&&!hit.ground&&blocks[key(...hit.position)]?.type==='path'){const next=structuredClone(blocks);next[key(...hit.position)].surface=$('#path-surface').value;commit(next);return;}
@@ -934,17 +936,18 @@ function openTouchMenu(hit,x,y){
  clearPreview();heldHit=hit;touchMenu.hidden=false;sound.effect('menuOpen');
  $('#touch-remove').disabled=!hit||hit.ground&&!water[waterKey(hit.position[0],hit.position[2])];
  $('#touch-undo').disabled=!history.length;
+ const canInspect=!!hit?.buildingId||blocks[key(...(hit?.position||[]))]?.type==='house';$('#touch-build span').textContent=canInspect?'Inspect':'Build';$('#touch-build').setAttribute('aria-label',canInspect?'Inspect building':'Open build menu');
  touchMenu.style.left=`${Math.max(8,Math.min(innerWidth-256,x-124))}px`;
  touchMenu.style.top=`${Math.max(8,Math.min(innerHeight-240,y-244))}px`;
  ghost.visible=false;
 }
-$('#touch-build').onclick=()=>{closeTouchMenu();setDock(true);};
+$('#touch-build').onclick=()=>{const hit=heldHit;closeTouchMenu();if(hit&&(hit.buildingId||blocks[key(...hit.position)]?.type==='house'))inspectBuilding(hit);else setDock(true);};
 $('#touch-remove').onclick=()=>{const hit=heldHit;closeTouchMenu();const previousTool=tool;tool='erase';try{edit(hit);}finally{tool=previousTool;}};
 $('#touch-undo').onclick=()=>{closeTouchMenu();undo();};
 $('#touch-cancel').onclick=closeTouchMenu;
 document.addEventListener('pointerdown',e=>{if(e.target!==canvas&&!touchMenu.contains(e.target)){cancelHold();closeTouchMenu();}},true);
 addEventListener('resize',()=>{cancelHold();closeTouchMenu();clearPreview();});
-addEventListener('keydown',e=>{if(e.key==='Escape'){cancelHold();closeTouchMenu();clearPreview();}});
+addEventListener('keydown',e=>{if(e.key==='Escape'){cancelHold();closeTouchMenu();clearPreview();inspectFreeform=false;syncFreeformPanel();}});
 
 function resetPointerInteraction(){
   cancelHold();closeTouchMenu();clearPreview();touchContacts.clear();
@@ -995,7 +998,7 @@ canvas.addEventListener('pointerup',e=>{
       const hit=pick(e);
       if(hit&&!hit.buildingId&&!renovationDraft&&tool==='house'&&$('#building-mode').value!=='freeform'){
         if(dock.dataset.open==='true')setDock(false);selectedCabin=null;syncCabinPanel();pendingCabin=hit;showCabinGhost(hit);$('#cabin-placement').hidden=false;
-      }else{edit(hit);if(!selectedCabin&&dock.dataset.open==='true')setDock(false);}
+      }else{edit(hit);if(!selectedCabin&&!selectedFreeform&&dock.dataset.open==='true')setDock(false);}
     }
     if(!pendingCabin)ghost.visible=false;
     return;
@@ -1013,7 +1016,7 @@ canvas.addEventListener('mousedown',e=>{if(e.button===1)e.preventDefault();});
 canvas.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault();});
 canvas.addEventListener('pointerleave',e=>{if(e.pointerType!=='touch'&&!pendingCabin)clearPreview();});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
-function selectTool(value){cancelRenovation(false);if(value!=='house')selectedCabin=null;clearPreview();cancelHold();closeTouchMenu();tool=value;$('#water-options').hidden=value!=='water';$('#building-materials').hidden=value!=='house';syncCabinPanel();$('#role-options').hidden=value!=='role';$('#tree-options').hidden=value!=='tree';$('#path-options').hidden=value!=='path';$('#deck-options').hidden=value!=='balcony';$('#camp-options').hidden=value!=='camp';$('#terrain-options').hidden=value!=='terrain';document.querySelectorAll('[data-tool]').forEach(b=>{b.classList.toggle('active',b.dataset.tool===tool);b.setAttribute('aria-pressed',String(b.dataset.tool===tool));});ghost.visible=false;}
+function selectTool(value){cancelRenovation(false);setBuildingDetail(null);selectedFreeform=null;inspectFreeform=false;if(value!=='house')selectedCabin=null;clearPreview();cancelHold();closeTouchMenu();tool=value;$('#water-options').hidden=value!=='water';$('#building-materials').hidden=value!=='house';syncCabinPanel();syncFreeformPanel();$('#tree-options').hidden=value!=='tree';$('#path-options').hidden=value!=='path';$('#deck-options').hidden=value!=='balcony';$('#camp-options').hidden=value!=='camp';$('#terrain-options').hidden=value!=='terrain';document.querySelectorAll('[data-tool]').forEach(b=>{b.classList.toggle('active',b.dataset.tool===tool);b.setAttribute('aria-pressed',String(b.dataset.tool===tool));});ghost.visible=false;}
 document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>selectTool(b.dataset.tool));
 $('#undo').onclick=undo;
 document.querySelectorAll('.dock select').forEach(select=>select.addEventListener('change',clearPreview));
@@ -1071,11 +1074,11 @@ function orbit(delta){const offset=camera.position.clone().sub(controls.target);
 controls.addEventListener('change',()=>{ghost.visible=false;});
 canvas.addEventListener('wheel',()=>{clearPreview();cancelHold();closeTouchMenu();},{passive:true});
 addEventListener('keydown',e=>{if(!['SELECT','INPUT','TEXTAREA'].includes(document.activeElement.tagName)&&['q','e','r'].includes(e.key.toLowerCase())){clearPreview();cancelHold();closeTouchMenu();}});
-addEventListener('keydown',e=>{if(['SELECT','INPUT'].includes(document.activeElement.tagName))return;if(['1','2','3','4','5','6','7','8','9'].includes(e.key))selectTool(['house','balcony','path','water','terrain','tree','camp','role','erase'][Number(e.key)-1]);if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();undo();}if(e.key.toLowerCase()==='q')orbit(Math.PI/8);if(e.key.toLowerCase()==='e')orbit(-Math.PI/8);});
+addEventListener('keydown',e=>{if(['SELECT','INPUT'].includes(document.activeElement.tagName))return;if(['1','2','3','4','5','6','7','8'].includes(e.key))selectTool(['house','balcony','path','water','terrain','tree','camp','erase'][Number(e.key)-1]);if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();undo();}if(e.key.toLowerCase()==='q')orbit(Math.PI/8);if(e.key.toLowerCase()==='e')orbit(-Math.PI/8);});
 function setAudioPanel(open){
  const panel=$('#audio-panel');if(panel.hidden===open)sound.effect(open?'menuOpen':'menuClose');
  panel.hidden=!open;$('#audio-toggle').setAttribute('aria-expanded',String(open));
- if(open){clearPreview();cancelHold();closeTouchMenu();if(!selectedCabin&&dock.dataset.open==='true')setDock(false);}
+ if(open){clearPreview();cancelHold();closeTouchMenu();if(!selectedCabin&&!selectedFreeform&&dock.dataset.open==='true')setDock(false);}
 }
 for(const input of document.querySelectorAll('[data-volume]')){
  const key=input.dataset.volume;input.value=Math.round(sound.preferences[key]*100);
@@ -1126,18 +1129,40 @@ function showCabinFootprint(b,color){
 function syncCabinPanel(){
  const b=cabins.find(b=>b.id===selectedCabin);if(!b)selectedCabin=null;
  dock.classList.toggle('cabin-context',!!b);
- cabinSelection.visible=!!b;
+ cabinSelection.visible=!!b;cabinSelection.scale.set(1,1,1);
  if(b){const cells=footprint(b);cabinSelection.position.set(cells.reduce((n,c)=>n+c[0],0)/4,terrainHeight(terrain,...b.position)+.12,cells.reduce((n,c)=>n+c[1],0)/4);}
  if(b){const shown=renovationDraft||b;$('#building-mode').value=b.blueprint===SHOP.id?'shop':'cabin';$('#cabin-design').value=shown.design;$('#cabin-exterior').value=shown.appearance.exterior;$('#cabin-roof').value=shown.appearance.roof;}
  const active=$('#building-mode').value!=='freeform';
  $('#cabin-options').hidden=!active;$('#freeform-options').hidden=active;
- $('#cabin-status').textContent=b?(renovationDraft?'Renovation preview · confirm to keep':`Selected ${BLUEPRINTS[b.blueprint].name} · customize below`):`${BLUEPRINTS[placementBlueprint()].name} · 2 × 2 · tap dry, level ground`;
- $('#cabin-new').textContent='Place another building';$('#cabin-new').hidden=!b;$('#cabin-rotate').hidden=!!b;$('#cabin-rotate').disabled=!!b;
+ $('#cabin-status').textContent=b?(renovationDraft?'Renovation preview · confirm to keep':BLUEPRINTS[b.blueprint].name):'';
+ $('#cabin-new').textContent='← Buildings';$('#cabin-new').hidden=!b;$('#cabin-rotate').hidden=!!b;$('#cabin-rotate').disabled=!!b;
  $('#renovation-actions').hidden=!b;$('#renovation-confirm').disabled=!renovationDraft;$('#renovation-cancel').disabled=!renovationDraft;
- $('#cabin-rotate').textContent=`↻ Rotate · ${cabinRotation*90}°`;updateEconomyUI();
+ $('#cabin-rotate').textContent=`↻ Rotate · ${cabinRotation*90}°`;$('#appearance-toggle').textContent=b?'Customize':'Appearance';updateEconomyUI();
 }
-$('#building-mode').onchange=()=>{cancelRenovation(false);selectedCabin=null;clearPreview();syncCabinPanel();};
-$('#cabin-new').onclick=()=>{cancelRenovation(false);selectedCabin=null;syncCabinPanel();};
+function setBuildingDetail(which){
+ for(const name of ['business','appearance']){const open=which===name;$('#'+name+'-panel').hidden=!open;$('#'+name+'-toggle').setAttribute('aria-expanded',String(open));}
+}
+$('#business-toggle').onclick=()=>{cancelRenovation();setBuildingDetail($('#business-panel').hidden?'business':null);};
+$('#appearance-toggle').onclick=()=>{const open=$('#appearance-panel').hidden;if(!open)cancelRenovation();setBuildingDetail(open?'appearance':null);};
+function syncFreeformPanel(){
+ const b=blocks[selectedFreeform];if(b?.type!=='house')selectedFreeform=null;
+ const selected=!!selectedFreeform;
+ dock.classList.toggle('freeform-context',selected);$('#role-options').hidden=!selected;
+ $('#building-materials').hidden=tool!=='house'||selected;
+ $('#freeform-inspect').setAttribute('aria-pressed',String(inspectFreeform));$('#freeform-inspect').textContent=inspectFreeform?'Tap a building · cancel selection':'Select existing building';
+ if(selected){$('#building-role').value=b.role||'home';const [x,y,z]=selectedFreeform.split(',').map(Number);cabinSelection.visible=true;cabinSelection.scale.set(.5,1,.5);cabinSelection.position.set(x,y+terrainHeight(terrain,x,z)+.12,z);}else if(!selectedCabin)cabinSelection.visible=false;
+}
+function inspectBuilding(hit){
+ if(hit?.buildingId){inspectFreeform=false;edit(hit);return;}
+ const k=hit?key(...hit.position):null;
+ if(blocks[k]?.type!=='house'){notify('Select an existing freeform building.');return;}
+ selectTool('house');selectedCabin=null;selectedFreeform=k;$('#building-mode').value='freeform';syncCabinPanel();syncFreeformPanel();clearPreview();setDock(true);
+}
+$('#freeform-inspect').onclick=()=>{inspectFreeform=!inspectFreeform;syncFreeformPanel();if(inspectFreeform){setDock(false);notify('Tap a freeform building to edit its purpose.');}};
+$('#purpose-back').onclick=()=>{selectedFreeform=null;selectTool('house');setDock(true);};
+$('#building-role').onchange=()=>{if(!selectedFreeform)return;const next=assignRole(blocks,selectedFreeform,$('#building-role').value);if(next)commit(next);syncFreeformPanel();};
+$('#building-mode').onchange=()=>{cancelRenovation(false);setBuildingDetail(null);selectedFreeform=null;inspectFreeform=false;selectedCabin=null;clearPreview();syncCabinPanel();};
+$('#cabin-new').onclick=()=>{cancelRenovation(false);setBuildingDetail(null);selectedCabin=null;syncCabinPanel();};
 $('#cabin-rotate').onclick=()=>{cabinRotation=(cabinRotation+1)%4;syncCabinPanel();clearPreview();if(hoverHit)preview(hoverHit);};
 function cabinChoices(){return {design:$('#cabin-design').value,appearance:{exterior:$('#cabin-exterior').value,roof:$('#cabin-roof').value}};}
 function cancelRenovation(refresh=true){
@@ -1168,7 +1193,7 @@ $('#renovation-confirm').onclick=()=>{
 function currentVillageData(){return {schemaVersion:2,blocks,water,terrain,peak,buildings:cabins,economy};}
 function loadVillage(slot){
  cancelRenovation(false);
- ({blocks,water,terrain,peak,buildings:cabins,economy}=slot?.data||emptyWorld());history=[];incomeBlocked=false;lastIncomeTime=performance.now();selectedCabin=null;syncCabinPanel();levelTarget=null;
+ ({blocks,water,terrain,peak,buildings:cabins,economy}=slot?.data||emptyWorld());history=[];incomeBlocked=false;lastIncomeTime=performance.now();selectedCabin=null;selectedFreeform=null;inspectFreeform=false;setBuildingDetail(null);syncFreeformPanel();syncCabinPanel();levelTarget=null;
  resetPointerInteraction();updateUI();rebuild();recenter();
 }
 function refreshVillages(){

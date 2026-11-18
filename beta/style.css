@@ -234,3 +234,19 @@ header .economy-status{pointer-events:auto;position:relative;display:block;min-w
 #cabin-options label[for="cabin-design"],#cabin-options #cabin-design{grid-row:4}#cabin-options label[for="cabin-exterior"],#cabin-options #cabin-exterior{grid-row:5}#cabin-options label[for="cabin-roof"],#cabin-options #cabin-roof{grid-row:6}#cabin-options #cabin-rotate,#cabin-options #cabin-new{grid-row:7}#renovation-funds{grid-row:8}#renovation-actions{grid-row:9}
 
 @media(min-width:601px){.dock.cabin-context{width:390px}.dock.cabin-context .tool-group,.dock.cabin-context #building-mode,.dock.cabin-context label[for="building-mode"]{display:none}.dock.cabin-context .palette{display:block}.dock.cabin-context #building-materials{border:0;padding:0;width:100%}.dock.cabin-context .dock-panel{max-height:calc(100dvh - 150px);overflow:auto}}
+
+/* Compact building flow: placement basics, then one optional detail panel. */
+#cabin-options{display:flex;flex-direction:column;gap:6px}#cabin-options[hidden]{display:none}
+.building-title{display:flex;align-items:center;justify-content:space-between;gap:8px}.building-title p{margin:0;font-size:12px;font-weight:600}.building-title:has(#cabin-status:empty){display:none}
+#cabin-options #cabin-new{min-height:44px;flex-shrink:0;font-size:11px;padding:5px 9px}
+#business-summary{margin:0;font-size:12px;color:var(--pine)}
+.building-actions{display:flex;gap:6px}.building-actions button{flex:1;min-width:0;min-height:44px!important;padding:6px;font-size:12px}.building-actions button[aria-expanded="true"]{background:#dce9cd;border-color:#87aa72}
+#business-panel{margin:0;padding:8px 10px}#business-panel[hidden],#appearance-panel[hidden]{display:none}
+#appearance-panel{display:grid;grid-template-columns:58px minmax(0,1fr);gap:6px;align-items:center;border-top:1px solid #dce3d1;padding-top:8px}
+#cabin-options #appearance-panel label,#cabin-options #appearance-panel select{grid-row:auto}#cabin-options #appearance-panel select{min-height:44px;font-size:12px;padding-left:8px}
+#renovation-price{grid-column:1/-1;margin:0;font-size:10px;line-height:1.4}#appearance-panel #renovation-funds,#appearance-panel #renovation-actions{grid-row:auto;grid-column:1/-1}
+#freeform-inspect{grid-column:1/-1;grid-row:3;min-height:44px}#role-options .building-title{grid-column:1/-1}#role-options p{font-size:11px;margin:2px 0}#role-options select{min-height:44px;width:100%}
+.dock.freeform-context .tool-group{display:none}.dock.freeform-context .palette{display:block}.dock.freeform-context #role-options{width:100%;border:0;padding:0}
+@media(min-width:601px){.dock.cabin-context,.dock.freeform-context{width:370px}}
+@media(max-width:600px){.tools{grid-template-columns:repeat(4,minmax(0,1fr))}.dock-panel:has(#building-materials:not([hidden])){max-height:min(50dvh,400px)}.dock.cabin-context .dock-panel,.dock.freeform-context .dock-panel{max-height:55dvh}.dock.cabin-context .dock-heading h2,.dock.freeform-context .dock-heading h2{display:none}.dock.cabin-context .dock-heading,.dock.freeform-context .dock-heading{justify-content:flex-end}}
+@media(max-height:500px) and (pointer:coarse){.tools{grid-template-columns:repeat(8,minmax(0,1fr))}.dock-panel:has(#building-materials:not([hidden])){max-height:55dvh}}
