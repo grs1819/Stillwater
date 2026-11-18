@@ -1,5 +1,5 @@
 // All first-pass balancing lives here. No wall-clock timestamps or offline rewards.
-export const ECONOMY=Object.freeze({startingGold:500,cabinCost:200,renovationCost:75,refundRate:.5,intervalMs:10_000,baselineIncome:2,appealPerBonus:15,maxGold:1_000_000_000});
+export const ECONOMY=Object.freeze({startingGold:500,cabinCost:200,shopCost:250,renovationCost:75,refundRate:.5,intervalMs:10_000,baselineIncome:2,maxGold:1_000_000_000});
 export const initialEconomy=()=>({version:1,gold:ECONOMY.startingGold,activeMs:0});
 export function normalizeEconomy(value){
  if(value===undefined)return initialEconomy();
@@ -19,7 +19,7 @@ export function transactGold(economy,delta){
 }
 const tiered=(n,first,rate,second,secondRate)=>Math.min(n,first)*rate+Math.min(Math.max(0,n-first),second)*secondRate;
 export function visitorAppeal(world){
- const items=Object.values(world.blocks),cabins=world.buildings,trees=items.filter(b=>b.type==='tree'),paths=items.filter(b=>b.type==='path').length;
+ const items=Object.values(world.blocks),cabins=world.buildings.filter(b=>b.blueprint==='timber-guest-cabin'),trees=items.filter(b=>b.type==='tree'),paths=items.filter(b=>b.type==='path').length;
  const species=new Set(trees.map(b=>b.species||'pine')).size,props=new Set(items.filter(b=>b.type==='campProp').map(b=>b.kind||'fire')).size;
  const water=Object.keys(world.water).map(k=>k.split(',').map(Number));
  const waterside=cabins.filter(b=>{const [dx,dz]=[[.5,.5],[.5,-.5],[-.5,-.5],[-.5,.5]][b.rotation];return water.some(([x,z])=>(x-b.position[0]-dx)**2+(z-b.position[1]-dz)**2<=2.5**2);}).length;
@@ -33,11 +33,11 @@ export function visitorAppeal(world){
  };
  return {score:Math.floor(Object.values(parts).reduce((a,b)=>a+b,0)),parts};
 }
-export const incomePerInterval=appeal=>ECONOMY.baselineIncome+Math.floor(appeal/ECONOMY.appealPerBonus);
-export function advanceIncome(economy,elapsedMs,appeal){
+export function advanceIncome(economy,elapsedMs,income=ECONOMY.baselineIncome){
  if(!Number.isFinite(elapsedMs)||elapsedMs<0)throw new Error('Invalid active play duration.');
+ if(!Number.isSafeInteger(income)||income<0)throw new Error('Invalid income rate.');
  const total=economy.activeMs+elapsedMs,ticks=Math.floor(total/ECONOMY.intervalMs);
- const next=transactGold(economy,ticks*incomePerInterval(appeal));next.activeMs=total%ECONOMY.intervalMs;
+ const next=transactGold(economy,ticks*income);next.activeMs=total%ECONOMY.intervalMs;
  return {economy:next,earned:next.gold-economy.gold,ticks};
 }
 // Foreground heartbeat only. Gaps caused by suspended tabs are discarded, not caught up.

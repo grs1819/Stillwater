@@ -1,9 +1,13 @@
 import * as THREE from 'three';
-import {EXTERIORS,FINISHES,DESIGNS} from './blueprints.js';
+import {EXTERIORS,FINISHES,DESIGNS,SHOP} from './blueprints.js';
 // Reuse the game's timber beams, cached materials, roofing finishes and details.
 export function createCabinView({box,beam,material,roofingMaterial,roofDetails},preview=false){
  const group=new THREE.Group(),cache=new Map();
  const previewMaterials=new Map();let valid=true,hiddenId=null;
+ const signCanvas=document.createElement('canvas');signCanvas.width=256;signCanvas.height=64;
+ const ink=signCanvas.getContext('2d');ink.fillStyle='#796044';ink.fillRect(0,0,256,64);ink.fillStyle='#f0dfb7';ink.font='bold 32px Georgia';ink.textAlign='center';ink.textBaseline='middle';ink.fillText('SUPPLIES',128,34);
+ const signTexture=new THREE.CanvasTexture(signCanvas);signTexture.colorSpace=THREE.SRGBColorSpace;
+ const signMaterial=new THREE.MeshStandardMaterial({map:signTexture,roughness:1});
  function previewMaterial(source){
   if(!previewMaterials.has(source)){const copy=source.clone();copy.transparent=true;copy.opacity=.57;copy.depthWrite=false;copy.side=THREE.DoubleSide;previewMaterials.set(source,copy);}
   return previewMaterials.get(source);
@@ -11,8 +15,9 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
  const outlineMaterial=preview?new THREE.LineBasicMaterial({color:0x507e57,transparent:true,opacity:.9}):null;
  function dispose(g){g.traverse(o=>{if(o.geometry)o.geometry.dispose();});}
  function build(b){
+  const shop=b.blueprint===SHOP.id,upgraded=b.gameplay.businessLevel===1;
   const g=new THREE.Group(),{wall,frame}=EXTERIORS[b.appearance.exterior],finish=FINISHES[b.appearance.roof],design=DESIGNS[b.design],peak=design.peak,cottage=b.design==='woodland',lodge=b.design==='craftsman',half=design.wallWidth/2,lo=.5-half,hi=.5+half;
-  g.userData={design:b.design,appearance:{...b.appearance}};
+  g.userData={blueprint:b.blueprint,design:b.design,appearance:{...b.appearance}};
   box(g,1.94,.16,1.94,.5,.08,.5,'#aaa58d');
   box(g,design.wallWidth,1.35,design.wallWidth,.5,.82,.5,wall);
   for(const x of [lo+.03,hi-.03])for(const z of [lo+.03,hi-.03])box(g,.12,1.5,.12,x,.88,z,frame);
@@ -62,6 +67,23 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
    for(let i=0;i<12;i++)box(g,.35,.025,.33,1.09,.14+i*.17,-.05,'#777d72');
    box(g,.44,.12,.42,1.09,2.21,-.05,'#747b72');
   }
+  if(shop){
+   // A broad storefront canopy, supplies sign and display crates distinguish the shop.
+   // Everything stays within the common 2x2 footprint and reserved entrance.
+   for(let i=0;i<8;i++){
+    const awning=box(g,.22,.065,.43,-.27+i*.22,1.43,1.25,i%2?'#dfc58c':'#82956c');awning.rotation.x=.14;
+   }
+   const sign=new THREE.Mesh(new THREE.PlaneGeometry(1.12,.28),signMaterial);sign.position.set(.5,1.77,hi+.025);g.add(sign);
+   for(const [x,z]of [[1.08,1.32],[1.08,.95]]){
+    box(g,.3,.28,.27,x,.29,z,frame);box(g,.25,.04,.22,x,.45,z,'#bc9866');
+    for(const dx of [-.1,.1])box(g,.025,.3,.29,x+dx,.3,z,'#d6bd8b');
+   }
+   if(upgraded)for(let i=0;i<3;i++)box(g,.12,.16,.13,.78+i*.17,.64,1.32,['#bca47a','#87956f','#b99072'][i]);
+  }else if(upgraded){
+   // A small welcome lantern marks the comfort upgrade without changing clearance.
+   box(g,.12,.2,.12,-.32,1.1,hi+.05,'#d9b66d');
+   box(g,.16,.04,.16,-.32,1.22,hi+.05,frame);
+  }
   g.traverse(o=>{if(o.isMesh&&preview){o.material=previewMaterial(o.material);o.castShadow=false;o.receiveShadow=false;}if(o.isMesh)o.userData={buildingId:b.id,position:[...b.position.slice(0,1),0,b.position[1]]};});
   if(preview){
    for(const mesh of [g.children[1],roof,g.children.find(o=>o.isMesh&&o.geometry.parameters?.height===.94)]){
@@ -72,7 +94,7 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
  }
  return {group,setHidden(id){hiddenId=id;for(const [key,entry]of cache)entry.mesh.visible=key!==id;},setValid(next){valid=next;if(preview){for(const [source,copy]of previewMaterials){copy.color.copy(source.color);if(!valid)copy.color.lerp(new THREE.Color('#d78469'),.7);}outlineMaterial.color.set(valid?'#507e57':'#b95c48');}},update(buildings,height){
   const ids=new Set(buildings.map(b=>b.id));for(const [id,entry]of cache)if(!ids.has(id)){group.remove(entry.mesh);dispose(entry.mesh);cache.delete(id);}
-  for(const b of buildings){const signature=JSON.stringify([b.definitionVersion,b.design,b.appearance]);let entry=cache.get(b.id);if(entry?.signature!==signature){if(entry){group.remove(entry.mesh);dispose(entry.mesh);}entry={signature,mesh:build(b)};cache.set(b.id,entry);group.add(entry.mesh);}
+  for(const b of buildings){const signature=JSON.stringify([b.blueprint,b.definitionVersion,b.design,b.appearance,b.gameplay.businessLevel||0]);let entry=cache.get(b.id);if(entry?.signature!==signature){if(entry){group.remove(entry.mesh);dispose(entry.mesh);}entry={signature,mesh:build(b)};cache.set(b.id,entry);group.add(entry.mesh);}
    entry.mesh.visible=b.id!==hiddenId;entry.mesh.position.set(b.position[0],height(...b.position),b.position[1]);entry.mesh.rotation.y=b.rotation*Math.PI/2;
   }
   group.updateMatrixWorld(true);const targets=[];group.traverse(o=>{if(o.isMesh)targets.push(o);});return targets;
