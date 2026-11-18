@@ -1,3 +1,4 @@
+const openAppearance=async page=>{if(await page.locator('#appearance-panel').isHidden())await page.locator('#appearance-toggle').click();};
 import assert from 'node:assert/strict';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 const browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox','--enable-unsafe-swiftshader']});
@@ -27,13 +28,13 @@ try{
   assert.equal(await page.evaluate(()=>probe.data().buildings.length),1);
   const id=await page.evaluate(()=>probe.data().buildings[0].id);
   await click(.5,1,.5);await page.waitForFunction(()=>!document.querySelector('#cabin-new').hidden);
-  await page.locator('#cabin-exterior').selectOption('birch');await page.locator('#cabin-roof').selectOption('slate');await page.locator('#renovation-confirm').click();
+  await openAppearance(page);await page.locator('#cabin-exterior').selectOption('birch');await openAppearance(page);await page.locator('#cabin-roof').selectOption('slate');await page.locator('#renovation-confirm').click();
   await page.evaluate(()=>probe.render());await page.screenshot({path:`/tmp/stillwater-cabin-panel-${mobile?'mobile':'desktop'}.png`});
   assert.equal(await page.evaluate(()=>probe.data().buildings[0].id),id);
   assert.equal(await page.evaluate(()=>probe.data().buildings[0].appearance.roof),'slate');
   await page.evaluate(()=>probe.undo());assert.equal(await page.evaluate(()=>probe.data().buildings[0].appearance.roof),'moss');
   // Re-select and restore finish, then verify serialized reload and full-object removal.
-  await page.evaluate(()=>probe.edit({position:[0,0,0],buildingId:probe.data().buildings[0].id}));await page.locator('#cabin-roof').selectOption('slate');await page.locator('#renovation-confirm').click();
+  await page.evaluate(()=>probe.edit({position:[0,0,0],buildingId:probe.data().buildings[0].id}));await openAppearance(page);await page.locator('#cabin-roof').selectOption('slate');await page.locator('#renovation-confirm').click();
   await page.reload();await page.waitForFunction(()=>window.probe);assert.equal(await page.evaluate(()=>probe.data().buildings[0].id),id);assert.equal(await page.evaluate(()=>probe.data().buildings[0].appearance.roof),'slate');
   await page.evaluate(()=>{probe.selectTool('erase');probe.edit({position:[0,0,0],buildingId:probe.data().buildings[0].id});});assert.equal(await page.evaluate(()=>probe.data().buildings.length),0);
   await page.evaluate(()=>probe.undo());assert.equal(await page.evaluate(()=>probe.data().buildings[0].id),id);

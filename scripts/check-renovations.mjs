@@ -1,3 +1,4 @@
+const openAppearance=async page=>{if(await page.locator('#appearance-panel').isHidden())await page.locator('#appearance-toggle').click();};
 import assert from 'node:assert/strict';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 const browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox','--enable-unsafe-swiftshader']});
@@ -18,25 +19,25 @@ window.probe={data:currentVillageData,save,undo,edit,selectTool,render:()=>rende
   const p=await page.evaluate(()=>probe.point());if(mobile){await page.touchscreen.tap(p.x,p.y);await page.locator('#cabin-place').tap();}else await page.mouse.click(p.x,p.y);
   await page.evaluate(()=>{probe.functional();probe.select();});const original=await page.evaluate(()=>probe.data().buildings[0]);
   for(const design of ['gable','woodland','craftsman'])for(const exterior of ['honey','birch'])for(const roof of ['moss','slate']){
-   await page.locator('#cabin-design').selectOption(design);await page.locator('#cabin-exterior').selectOption(exterior);await page.locator('#cabin-roof').selectOption(roof);
+   await openAppearance(page);await page.locator('#cabin-design').selectOption(design);await openAppearance(page);await page.locator('#cabin-exterior').selectOption(exterior);await openAppearance(page);await page.locator('#cabin-roof').selectOption(roof);
    assert.deepEqual(await page.evaluate(()=>probe.data().buildings[0]),original,'Preview never mutates saved state');
    if(await page.evaluate(()=>!!probe.draft())){assert.equal(await page.evaluate(()=>probe.visible()),false);assert.deepEqual(await page.evaluate(()=>probe.bounds()),[],`${design} decoration clearance`);}
   }
   assert.equal(await page.locator('#cabin-roof').evaluate(e=>{const c=document.createElement('canvas').getContext('2d'),s=getComputedStyle(e);c.font=s.font;return c.measureText(e.selectedOptions[0].textContent).width+parseFloat(s.paddingLeft)+parseFloat(s.paddingRight)+24<=e.clientWidth;}),true,'Full roof name fits');
   await page.evaluate(()=>probe.render());await page.screenshot({path:`/tmp/stillwater-renovation-${mobile?'mobile':'desktop'}.png`});
   await page.locator('#renovation-cancel').click();assert.equal(await page.evaluate(()=>probe.visible()),true);assert.deepEqual(await page.evaluate(()=>probe.data().buildings[0]),original);
-  await page.locator('#cabin-design').selectOption('woodland');const ghost=await page.evaluate(()=>probe.ghost());
+  await openAppearance(page);await page.locator('#cabin-design').selectOption('woodland');const ghost=await page.evaluate(()=>probe.ghost());
   await page.locator('#renovation-confirm').click();assert.equal(await page.evaluate(()=>probe.actual()),ghost,'Confirmed geometry and finishes match preview');
   let b=await page.evaluate(()=>probe.data().buildings[0]);assert.equal(b.design,'woodland');assert.equal(b.id,original.id);assert.deepEqual(b.gameplay,original.gameplay);
   await page.evaluate(()=>probe.undo());assert.deepEqual(await page.evaluate(()=>probe.data().buildings[0]),original);
-  await page.evaluate(()=>probe.select());await page.locator('#cabin-design').selectOption('craftsman');await page.evaluate(()=>probe.save());await page.reload();await page.waitForFunction(()=>window.probe);assert.equal(await page.evaluate(()=>probe.data().buildings[0].design),'gable','Unconfirmed draft is never serialized');
-  await page.evaluate(()=>probe.select());await page.locator('#cabin-design').selectOption('craftsman');await page.locator('#cabin-roof').selectOption('slate');await page.locator('#renovation-confirm').click();
+  await page.evaluate(()=>probe.select());await openAppearance(page);await page.locator('#cabin-design').selectOption('craftsman');await page.evaluate(()=>probe.save());await page.reload();await page.waitForFunction(()=>window.probe);assert.equal(await page.evaluate(()=>probe.data().buildings[0].design),'gable','Unconfirmed draft is never serialized');
+  await page.evaluate(()=>probe.select());await openAppearance(page);await page.locator('#cabin-design').selectOption('craftsman');await openAppearance(page);await page.locator('#cabin-roof').selectOption('slate');await page.locator('#renovation-confirm').click();
   await page.reload();await page.waitForFunction(()=>window.probe);b=await page.evaluate(()=>probe.data().buildings[0]);assert.equal(b.design,'craftsman');assert.equal(b.appearance.roof,'slate');assert.equal(b.id,original.id);assert.deepEqual(b.gameplay,original.gameplay);
-  await page.evaluate(()=>probe.select());await page.locator('#cabin-design').selectOption('woodland');await page.evaluate(()=>probe.selectTool('tree'));assert.equal(await page.evaluate(()=>probe.draft()),null);assert.equal(await page.evaluate(()=>probe.visible()),true);
+  await page.evaluate(()=>probe.select());await openAppearance(page);await page.locator('#cabin-design').selectOption('woodland');await page.evaluate(()=>probe.selectTool('tree'));assert.equal(await page.evaluate(()=>probe.draft()),null);assert.equal(await page.evaluate(()=>probe.visible()),true);
   await page.evaluate(()=>probe.gallery());await page.waitForTimeout(300);await page.screenshot({path:`/tmp/stillwater-designs-${mobile?'mobile':'desktop'}.png`});assert.deepEqual(errors,[]);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   for(const [i,design]of ['gable','woodland','craftsman'].entries()){
    await page.evaluate(()=>{probe.selectTool('house');document.querySelector('#dock-toggle').click();});
-   await page.locator('#cabin-design').selectOption(design);await page.locator('#cabin-exterior').selectOption('birch');await page.locator('#cabin-roof').selectOption('slate');await page.locator('#dock-toggle').click();
+   await openAppearance(page);await page.locator('#cabin-design').selectOption(design);await openAppearance(page);await page.locator('#cabin-exterior').selectOption('birch');await openAppearance(page);await page.locator('#cabin-roof').selectOption('slate');await page.locator('#dock-toggle').click();
    const pos=await page.evaluate(i=>probe.point(-4+i*4,-4),i);
    if(mobile)await page.touchscreen.tap(pos.x,pos.y);else await page.mouse.move(pos.x,pos.y);
    const preview=await page.evaluate(()=>probe.ghost());

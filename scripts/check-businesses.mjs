@@ -1,3 +1,4 @@
+const openAppearance=async page=>{if(await page.locator('#appearance-panel').isHidden())await page.locator('#appearance-toggle').click();};
 import assert from 'node:assert/strict';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 const browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox','--enable-unsafe-swiftshader']});
@@ -23,16 +24,16 @@ data:currentVillageData,report:currentBusiness,earn:earnDuringPlay,save,undo,
  if(mobile)await page.locator('#cabin-place').tap();else await page.mouse.click(pos.x,pos.y);
  assert.equal(await gold(),50);assert.equal(await page.evaluate(()=>probe.data().buildings[1].blueprint),'supply-shop');assert.equal(await page.evaluate(()=>probe.actual(1)),ghost,'shop preview matches placement');
  let report=await page.evaluate(()=>probe.report());assert.equal(report.guests,1);assert.equal(report.income,4);assert.equal(report.rows[1].customers,1);
- await page.evaluate(()=>probe.select(1));await page.locator('#business-summary').click();assert.equal(await page.locator('#business-upgrade').isDisabled(),true);assert.match(await page.locator('#business-upgrade-note').textContent(),/Need 175/);
+ await page.evaluate(()=>probe.select(1));await page.locator('#business-toggle').click();assert.equal(await page.locator('#business-upgrade').isDisabled(),true);assert.match(await page.locator('#business-upgrade-note').textContent(),/Need 175/);
  await page.evaluate(()=>probe.earn(600000));assert.equal(await gold(),290);
- const original=await page.evaluate(()=>probe.data().buildings[1]);await page.locator('#business-upgrade').click();assert.equal(await gold(),115);assert.equal(await page.evaluate(()=>probe.data().buildings[1].gameplay.businessLevel),1);assert.equal(await page.locator('#business-upgrade').isDisabled(),true);
+ const original=await page.evaluate(()=>probe.data().buildings[1]);if(await page.locator('#business-panel').isHidden())await page.locator('#business-toggle').click();await page.locator('#business-upgrade').click();assert.equal(await gold(),115);assert.equal(await page.evaluate(()=>probe.data().buildings[1].gameplay.businessLevel),1);assert.equal(await page.locator('#business-upgrade').isDisabled(),true);
  await page.evaluate(()=>probe.undo());assert.equal(await gold(),290);assert.deepEqual(await page.evaluate(()=>probe.data().buildings[1]),original);
- await page.evaluate(()=>probe.select(1));await page.locator('#business-upgrade').click();assert.equal(await gold(),115);
- await page.locator('#cabin-design').selectOption('woodland');await page.locator('#renovation-cancel').click();assert.equal(await gold(),115);
- await page.locator('#cabin-design').selectOption('craftsman');await page.locator('#renovation-confirm').click();assert.equal(await gold(),40);assert.equal(await page.evaluate(()=>probe.data().buildings[1].id),original.id);assert.equal(await page.evaluate(()=>probe.data().buildings[1].gameplay.businessLevel),1);
+ await page.evaluate(()=>probe.select(1));if(await page.locator('#business-panel').isHidden())await page.locator('#business-toggle').click();await page.locator('#business-upgrade').click();assert.equal(await gold(),115);
+ await openAppearance(page);await page.locator('#cabin-design').selectOption('woodland');await page.locator('#renovation-cancel').click();assert.equal(await gold(),115);
+ await openAppearance(page);await page.locator('#cabin-design').selectOption('craftsman');await page.locator('#renovation-confirm').click();assert.equal(await gold(),40);assert.equal(await page.evaluate(()=>probe.data().buildings[1].id),original.id);assert.equal(await page.evaluate(()=>probe.data().buildings[1].gameplay.businessLevel),1);
  await page.evaluate(()=>{probe.earn(605000);probe.save();});const saved=await page.evaluate(()=>probe.data());await page.reload();await page.waitForFunction(()=>window.probe);assert.deepEqual(await page.evaluate(()=>probe.data()),saved,'no offline income or lost upgrades');
  await page.evaluate(()=>probe.earn(5000));assert.equal(await gold(),saved.economy.gold+4,'one remainder payout');
- await page.evaluate(()=>probe.select(0));await page.locator('#business-summary').click();assert.match(await page.locator('#business-upgrade').textContent(),/150 Gold/);await page.locator('#business-upgrade').click();assert.equal(await page.evaluate(()=>probe.report().rows[0].capacity),4);
+ await page.evaluate(()=>probe.select(0));await page.locator('#business-toggle').click();assert.match(await page.locator('#business-upgrade').textContent(),/150 Gold/);if(await page.locator('#business-panel').isHidden())await page.locator('#business-toggle').click();await page.locator('#business-upgrade').click();assert.equal(await page.evaluate(()=>probe.report().rows[0].capacity),4);
  await page.evaluate(()=>probe.select(1));await page.evaluate(()=>probe.render());await page.screenshot({path:`/tmp/stillwater-business-${mobile?'mobile':'desktop'}.png`});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  await page.locator('#dock-toggle').click();await page.waitForTimeout(350);await page.evaluate(()=>probe.render());await page.screenshot({path:`/tmp/stillwater-shop-${mobile?'mobile':'desktop'}.png`});
  const before=await page.evaluate(()=>probe.data());await page.evaluate(()=>{const original=Storage.prototype.setItem;Storage.prototype.setItem=()=>{throw new DOMException('Quota','QuotaExceededError');};probe.remove(1);Storage.prototype.setItem=original;});assert.deepEqual(await page.evaluate(()=>probe.data()),before);

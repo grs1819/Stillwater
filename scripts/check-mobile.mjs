@@ -42,7 +42,7 @@ try{
  await held(-2,0,0);await page.locator('#touch-undo').tap();assert.equal(await count(),1);
  await send('touchStart',[pt(1,190,420)]);await send('touchCancel',[]);await page.waitForTimeout(650);await noMenu();assert.equal(await count(),1);
  // Other selected tools also apply immediately, using existing edit rules.
- await page.evaluate(()=>{probe.selectTool('role');document.querySelector('#building-role').value='cafe';});await tap(0,.5,0);assert.equal(await page.evaluate(()=>probe.read().blocks['0,0,0'].role),'cafe');
+ await held(0,.5,0);await page.locator('#touch-build').tap();await page.locator('#building-role').selectOption('cafe');await page.locator('#purpose-back').tap();await page.locator('#dock-toggle').tap();assert.equal(await page.evaluate(()=>probe.read().blocks['0,0,0'].role),'cafe');
  await page.evaluate(()=>probe.selectTool('terrain'));await tap(-4,0,0);assert.equal(await page.evaluate(()=>probe.read().terrain['-4,0']),1);
  await page.evaluate(()=>probe.selectTool('water'));await tap(-2,0,2);assert(await page.evaluate(()=>!!probe.read().water['-2,2']));
  await page.evaluate(()=>probe.selectTool('house'));await tap(-2,0,-2);assert.equal(await count(),2);await noMenu();

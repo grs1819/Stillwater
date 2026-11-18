@@ -1,3 +1,4 @@
+const openAppearance=async page=>{if(await page.locator('#appearance-panel').isHidden())await page.locator('#appearance-toggle').click();};
 import assert from 'node:assert/strict';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 const browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox','--enable-unsafe-swiftshader']});
@@ -17,10 +18,10 @@ try {for(const mobile of [false,true]){
  await page.evaluate(()=>probe.place(4,0));assert.equal(await gold(),100);
  await page.evaluate(()=>probe.place(-4,0));assert.equal(await gold(),100);assert.equal(await page.evaluate(()=>probe.data().buildings.length),2);
  await page.evaluate(()=>probe.select());const id=await page.evaluate(()=>probe.data().buildings[0].id);
- await page.locator('#cabin-design').selectOption('woodland');assert.equal(await gold(),100);await page.locator('#renovation-cancel').click();assert.equal(await gold(),100);
- await page.locator('#cabin-design').selectOption('woodland');await page.locator('#renovation-confirm').click();assert.equal(await gold(),25);assert.equal(await page.evaluate(()=>probe.data().buildings[0].id),id);
- await page.locator('#cabin-design').selectOption('craftsman');assert.equal(await page.locator('#renovation-confirm').isDisabled(),true);await page.locator('#renovation-cancel').click();
- await page.locator('#cabin-roof').selectOption('slate');await page.locator('#renovation-confirm').click();assert.equal(await gold(),25);
+ await openAppearance(page);await page.locator('#cabin-design').selectOption('woodland');assert.equal(await gold(),100);await page.locator('#renovation-cancel').click();assert.equal(await gold(),100);
+ await openAppearance(page);await page.locator('#cabin-design').selectOption('woodland');await page.locator('#renovation-confirm').click();assert.equal(await gold(),25);assert.equal(await page.evaluate(()=>probe.data().buildings[0].id),id);
+ await openAppearance(page);await page.locator('#cabin-design').selectOption('craftsman');assert.equal(await page.locator('#renovation-confirm').isDisabled(),true);await page.locator('#renovation-cancel').click();
+ await openAppearance(page);await page.locator('#cabin-roof').selectOption('slate');await page.locator('#renovation-confirm').click();assert.equal(await gold(),25);
  await page.evaluate(()=>probe.remove());assert.equal(await gold(),125);await page.evaluate(()=>probe.undo());assert.equal(await gold(),25);
  await page.evaluate(()=>probe.earn(15000));assert.equal(await gold(),29);
  await page.evaluate(()=>probe.undo());assert.equal(await gold(),29,'free finish undo retains income');
