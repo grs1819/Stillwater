@@ -22,11 +22,11 @@ try {for(const mobile of [false,true]){
  await page.locator('#cabin-design').selectOption('craftsman');assert.equal(await page.locator('#renovation-confirm').isDisabled(),true);await page.locator('#renovation-cancel').click();
  await page.locator('#cabin-roof').selectOption('slate');await page.locator('#renovation-confirm').click();assert.equal(await gold(),25);
  await page.evaluate(()=>probe.remove());assert.equal(await gold(),125);await page.evaluate(()=>probe.undo());assert.equal(await gold(),25);
- await page.evaluate(()=>probe.earn(15000));assert.equal(await gold(),27);
- await page.evaluate(()=>probe.undo());assert.equal(await gold(),27,'free finish undo retains income');
- await page.evaluate(()=>probe.undo());assert.equal(await gold(),102,'renovation undo retains income');
+ await page.evaluate(()=>probe.earn(15000));assert.equal(await gold(),29);
+ await page.evaluate(()=>probe.undo());assert.equal(await gold(),29,'free finish undo retains income');
+ await page.evaluate(()=>probe.undo());assert.equal(await gold(),104,'renovation undo retains income');
  await page.evaluate(()=>probe.save());const saved=await page.evaluate(()=>probe.data());await page.reload();await page.waitForFunction(()=>window.probe);assert.deepEqual(await page.evaluate(()=>probe.data()),saved);
- await page.evaluate(()=>probe.earn(5000));assert.equal(await gold(),104,'remainder survives reload, no duplicate payout');
+ await page.evaluate(()=>probe.earn(5000));assert.equal(await gold(),108,'remainder survives reload, no duplicate payout');
  // Quota failure must not remove a building, credit a refund, or create undo history.
  const before=await page.evaluate(()=>({data:probe.data(),history:probe.history()}));
  await page.evaluate(()=>{window.realSet=Storage.prototype.setItem;Storage.prototype.setItem=function(){throw new DOMException('Quota exceeded','QuotaExceededError');};probe.remove();Storage.prototype.setItem=window.realSet;});

@@ -6,6 +6,7 @@ try{
   const page=await browser.newPage({viewport:mobile?{width:390,height:844}:{width:1280,height:850},isMobile:mobile,hasTouch:mobile});const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/app.js*',async route=>{const response=await route.fetch();await route.fulfill({response,body:await response.text()+`
 clearInterval(incomeTimer);renderer.setAnimationLoop(null);controls.enableDamping=false;
+const {cabinAt}=await import('./blueprints.js');
 const visual=g=>{const a=[];g.traverse(o=>{if(o.isMesh)a.push({vertices:Array.from(o.geometry.attributes.position.array),position:o.position.toArray(),quaternion:o.quaternion.toArray(),color:o.material.color.getHexString()});});return JSON.stringify(a);};
 window.probe={data:currentVillageData,save,undo,edit,selectTool,render:()=>renderer.render(scene,camera),select:()=>edit({position:[0,0,0],buildingId:cabins[0].id}),
  functional:()=>{cabins[0].gameplay={workers:['one'],equipment:{stove:2},inventory:{logs:4},progress:.6};save();},

@@ -1,5 +1,6 @@
-import {ECONOMY,transactGold,removalRefund,renovationCost,visitorAppeal,incomePerInterval,advanceIncome,activeElapsed} from './economy.js';
-import {renovateCabin,emptyWorld,validateWorld,cabinAt,placementError,cabinOccupancy,navigationBlocks,footprint} from './blueprints.js';
+import {businessSummary,upgradeQuote,upgradeBusiness} from './businesses.js';
+import {ECONOMY,transactGold,removalRefund,renovationCost,advanceIncome,activeElapsed} from './economy.js';
+import {renovateCabin,emptyWorld,validateWorld,buildingAt,BLUEPRINTS,CABIN,SHOP,placementError,cabinOccupancy,navigationBlocks,footprint} from './blueprints.js';
 import {createCabinView} from './cabin-view.js';
 import {createAccounts} from './accounts.js';
 import {createCloudSync,supabaseRemote} from './cloud-sync.js';
@@ -123,21 +124,39 @@ function goldFeedback(delta){
  if(!delta)return;const output=$('#gold-feedback');output.textContent=`${delta>0?'+':''}${delta}`;output.className=delta>0?'gain':'spent';
  clearTimeout(goldFeedback.timer);goldFeedback.timer=setTimeout(()=>{output.textContent='';},2200);
 }
+let businessCache;
+function currentBusiness(){
+ if(!businessCache||businessCache.blocks!==blocks||businessCache.water!==water||businessCache.cabins!==cabins)businessCache={blocks,water,cabins,result:businessSummary(currentVillageData())};
+ return businessCache.result;
+}
+function placementBlueprint(){return $('#building-mode').value==='shop'?SHOP.id:CABIN.id;}
+function selectedBuildingAt(x,z,id){return renovateCabin(buildingAt(placementBlueprint(),x,z,cabinRotation,undefined,id),cabinChoices());}
 function updateEconomyUI(){
- const appeal=visitorAppeal(currentVillageData()),income=incomePerInterval(appeal.score);
+ const report=currentBusiness(),{appeal,income}=report,perMinute=60000/ECONOMY.intervalMs;
  $('#gold-balance').textContent=economy.gold.toLocaleString();
  $('#appeal-summary').textContent=`Appeal ${appeal.score} · +${income*60000/ECONOMY.intervalMs}/min`;
  $('#appeal-breakdown').replaceChildren(...Object.entries(appeal.parts).map(([label,value])=>{const row=document.createElement('div');row.textContent=`${label}: ${value}`;return row;}));
- const original=cabins.find(b=>b.id===selectedCabin),cost=original&&renovationDraft?renovationCost(original,renovationDraft):0;
- $('#cabin-price').textContent=original?`Design change: ${ECONOMY.renovationCost} Gold · finishes free · removal refund: ${removalRefund(original)} Gold`:`Cabin: ${ECONOMY.cabinCost} Gold · removal refund: ${Math.floor(ECONOMY.cabinCost*ECONOMY.refundRate)} Gold`;
+ $('#business-overview').textContent=`${report.guests} guests staying · demand for ${report.demand}. Baseline: +${report.baseline*perMinute} Gold/min; businesses: +${(income-report.baseline)*perMinute} Gold/min.`;
+ const original=cabins.find(b=>b.id===selectedCabin),cost=original&&renovationDraft?renovationCost(original,renovationDraft):0,definition=BLUEPRINTS[original?.blueprint||placementBlueprint()];
+ $('#cabin-price').textContent=original?`Design change: ${ECONOMY.renovationCost} Gold · finishes free · removal refund: ${removalRefund(original)} Gold`:`${definition.name}: ${definition.cost} Gold · removal refund: ${Math.floor(definition.cost*ECONOMY.refundRate)} Gold`;
  $('#renovation-confirm').textContent=cost?`Confirm · ${cost} Gold`:'Confirm · Free';$('#renovation-confirm').disabled=!renovationDraft||!!fundsError(cost);
  $('#renovation-funds').textContent=renovationDraft?(fundsError(cost)||''):'';
- $('#cabin-place').textContent=`Place · ${ECONOMY.cabinCost} Gold`;
+ $('#cabin-place').textContent=`Place · ${definition.cost} Gold`;
+ $('#business-panel').hidden=!original;
+ if(original){
+  const row=report.rows.find(r=>r.id===original.id),quote=upgradeQuote(original);
+  $('#business-summary').textContent=`${row.shop?'Customers':'Guests'} ${row.shop?row.customers:row.guests}/${row.capacity} · +${row.income*perMinute} Gold/min`;
+  $('#business-description').textContent=row.shop?`Serving ${row.lodgings} nearby lodging${row.lodgings===1?'':'s'}. Each guest shops at one store.`:`${row.guests} guests staying in ${row.capacity} beds. Settlement demand: ${report.demand}.`;
+  $('#business-hint').textContent=row.hint;
+  $('#business-upgrade').textContent=row.level?'Fully upgraded':`${quote.name} · ${quote.cost} Gold`;
+  $('#business-upgrade').disabled=!!row.level||!!renovationDraft||!!fundsError(quote.cost);
+  $('#business-upgrade-note').textContent=row.level?'Functional upgrade kept through renovations.':renovationDraft?'Confirm or cancel the renovation first.':fundsError(quote.cost)||`Capacity → ${quote.capacity}. Separate from cosmetic renovations; demand still applies.`;
+ }
  if(pendingCabin)showCabinGhost(pendingCabin);
 }
 function earnDuringPlay(elapsedMs){
  if(incomeBlocked||villages.error)return;
- const result=advanceIncome(economy,elapsedMs,visitorAppeal(currentVillageData()).score);
+ const result=advanceIncome(economy,elapsedMs,currentBusiness().income);
  if(result.ticks&&!save({...currentVillageData(),economy:result.economy})){incomeBlocked=true;return;}
  economy=result.economy;if(result.ticks){updateEconomyUI();goldFeedback(result.earned);}
 }
@@ -846,14 +865,14 @@ function edit(hit,remove=false,paint=false){
     else {cancelRenovation(false);selectedCabin=hit.buildingId;selectTool('house');syncCabinPanel();setDock(true);}
     return;
   }
-  if(tool==='house'&&$('#building-mode').value==='cabin'&&!remove){
+  if(tool==='house'&&$('#building-mode').value!=='freeform'&&!remove){
     if(renovationDraft){notify('Confirm or cancel this renovation first.');return;}
-    const b=renovateCabin(cabinAt(x,z,cabinRotation),cabinChoices());
+    const b=selectedBuildingAt(x,z);
     const error=placementError(b,currentVillageData());if(error){notify(error);return;}
-    b.paidGold=ECONOMY.cabinCost;if(commit(blocks,water,terrain,[...cabins,b],-ECONOMY.cabinCost)){sound.effect('wood');selectedCabin=null;syncCabinPanel();}return;
+    b.paidGold=BLUEPRINTS[b.blueprint].cost;if(commit(blocks,water,terrain,[...cabins,b],-b.paidGold)){sound.effect('wood');selectedCabin=null;syncCabinPanel();}return;
   }
   const reserved=cabinOccupancy(cabins,true),occupied=cabinOccupancy(cabins);
-  if(!remove&&tool!=='erase'&&reserved.has(`${x},${z}`)&&!(tool==='path'&&!occupied.has(`${x},${z}`))){notify('Keep the cabin footprint and entrance clear. Tap the cabin to customize it.');return;}
+  if(!remove&&tool!=='erase'&&reserved.has(`${x},${z}`)&&!(tool==='path'&&!occupied.has(`${x},${z}`))){notify('Keep the building footprint and entrance clear. Tap the building to customize it.');return;}
   if(terrainMode()&&!remove){
     const mode=terrainMode();
     if(mode==='level'&&levelTarget===null){levelTarget=terrainLevel(terrain,x,z);$('#terrain-level').textContent=`Level target: ${(levelTarget*TERRAIN_STEP).toFixed(2)} · tap land to apply`;notify('Height sampled. Tap other tiles to level them.');return;}
@@ -889,7 +908,7 @@ function preview(hit){
   if(renovationDraft)return;
   cabinGhost.group.visible=false;entranceArrow.visible=false;
   if(hit?.buildingId){const b=cabins.find(b=>b.id===hit.buildingId);showCabinFootprint(b,'#fff5bf');return;}
-  if(hit&&tool==='house'&&$('#building-mode').value==='cabin'){
+  if(hit&&tool==='house'&&$('#building-mode').value!=='freeform'){
     showCabinGhost(hit);return;
   }
   const p=destination(hit);
@@ -974,7 +993,7 @@ canvas.addEventListener('pointerup',e=>{
     cancelHold();touchContacts.delete(e.pointerId);
     if(contact&&!contact.held&&!contact.moved&&Math.hypot(e.clientX-contact.x,e.clientY-contact.y)<=8&&performance.now()-contact.time<500){
       const hit=pick(e);
-      if(hit&&!hit.buildingId&&!renovationDraft&&tool==='house'&&$('#building-mode').value==='cabin'){
+      if(hit&&!hit.buildingId&&!renovationDraft&&tool==='house'&&$('#building-mode').value!=='freeform'){
         if(dock.dataset.open==='true')setDock(false);selectedCabin=null;syncCabinPanel();pendingCabin=hit;showCabinGhost(hit);$('#cabin-placement').hidden=false;
       }else{edit(hit);if(!selectedCabin&&dock.dataset.open==='true')setDock(false);}
     }
@@ -1089,8 +1108,8 @@ const cabinView=createCabinView({box,beam:timberBeam,material,roofingMaterial,ro
 const cabinGhost=createCabinView({box,beam:timberBeam,material,roofingMaterial,roofDetails},true);scene.add(cabinGhost.group);cabinGhost.group.visible=false;
 const entranceArrow=new THREE.ArrowHelper(new THREE.Vector3(0,0,1),new THREE.Vector3(),.75,0x356346,.27,.24);scene.add(entranceArrow);entranceArrow.visible=false;
 function showCabinGhost(hit){
- const b=renovateCabin(cabinAt(hit.position[0],hit.position[2],cabinRotation,undefined,'preview'),cabinChoices());
- const error=placementError(b,currentVillageData())||fundsError(ECONOMY.cabinCost);
+ const b=selectedBuildingAt(hit.position[0],hit.position[2],'preview');
+ const error=placementError(b,currentVillageData())||fundsError(BLUEPRINTS[b.blueprint].cost);
  cabinGhost.update([b],(x,z)=>terrainHeight(terrain,x,z));cabinGhost.setValid(!error);cabinGhost.group.visible=true;
  showCabinFootprint(b,error?'#d78469':'#91ba8a');
  const angle=cabinRotation*Math.PI/2,dx=Math.sin(angle),dz=Math.cos(angle);
@@ -1109,15 +1128,15 @@ function syncCabinPanel(){
  dock.classList.toggle('cabin-context',!!b);
  cabinSelection.visible=!!b;
  if(b){const cells=footprint(b);cabinSelection.position.set(cells.reduce((n,c)=>n+c[0],0)/4,terrainHeight(terrain,...b.position)+.12,cells.reduce((n,c)=>n+c[1],0)/4);}
- if(b){const shown=renovationDraft||b;$('#building-mode').value='cabin';$('#cabin-design').value=shown.design;$('#cabin-exterior').value=shown.appearance.exterior;$('#cabin-roof').value=shown.appearance.roof;}
- const active=$('#building-mode').value==='cabin';
+ if(b){const shown=renovationDraft||b;$('#building-mode').value=b.blueprint===SHOP.id?'shop':'cabin';$('#cabin-design').value=shown.design;$('#cabin-exterior').value=shown.appearance.exterior;$('#cabin-roof').value=shown.appearance.roof;}
+ const active=$('#building-mode').value!=='freeform';
  $('#cabin-options').hidden=!active;$('#freeform-options').hidden=active;
- $('#cabin-status').textContent=b?(renovationDraft?'Renovation preview · confirm to keep':'Selected cabin · choose a design or finish to preview'):'Timber Guest Cabin · 2 × 2 · tap dry, level ground';
- $('#cabin-new').hidden=!b;$('#cabin-rotate').hidden=!!b;$('#cabin-rotate').disabled=!!b;
+ $('#cabin-status').textContent=b?(renovationDraft?'Renovation preview · confirm to keep':`Selected ${BLUEPRINTS[b.blueprint].name} · customize below`):`${BLUEPRINTS[placementBlueprint()].name} · 2 × 2 · tap dry, level ground`;
+ $('#cabin-new').textContent='Place another building';$('#cabin-new').hidden=!b;$('#cabin-rotate').hidden=!!b;$('#cabin-rotate').disabled=!!b;
  $('#renovation-actions').hidden=!b;$('#renovation-confirm').disabled=!renovationDraft;$('#renovation-cancel').disabled=!renovationDraft;
  $('#cabin-rotate').textContent=`↻ Rotate · ${cabinRotation*90}°`;updateEconomyUI();
 }
-$('#building-mode').onchange=()=>{cancelRenovation(false);selectedCabin=null;syncCabinPanel();clearPreview();};
+$('#building-mode').onchange=()=>{cancelRenovation(false);selectedCabin=null;clearPreview();syncCabinPanel();};
 $('#cabin-new').onclick=()=>{cancelRenovation(false);selectedCabin=null;syncCabinPanel();};
 $('#cabin-rotate').onclick=()=>{cabinRotation=(cabinRotation+1)%4;syncCabinPanel();clearPreview();if(hoverHit)preview(hoverHit);};
 function cabinChoices(){return {design:$('#cabin-design').value,appearance:{exterior:$('#cabin-exterior').value,roof:$('#cabin-roof').value}};}
@@ -1134,6 +1153,11 @@ for(const id of ['cabin-design','cabin-exterior','cabin-roof'])$('#'+id).onchang
  renovationDraft=next;cabinView.setHidden(b.id);cabinGhost.update([next],(x,z)=>terrainHeight(terrain,x,z));cabinGhost.setValid(true);cabinGhost.group.visible=true;entranceArrow.visible=false;renderer.shadowMap.needsUpdate=true;syncCabinPanel();
 };
 $('#renovation-cancel').onclick=()=>cancelRenovation();
+$('#business-upgrade').onclick=()=>{
+ const original=cabins.find(b=>b.id===selectedCabin);if(!original||renovationDraft||original.gameplay.businessLevel)return;
+ const next=upgradeBusiness(original),quote=upgradeQuote(original);
+ if(commit(blocks,water,terrain,cabins.map(b=>b.id===next.id?next:b),-quote.cost)){sound.effect('wood');syncCabinPanel();}
+};
 $('#renovation-confirm').onclick=()=>{
  const draft=renovationDraft;if(!draft)return;
  const original=cabins.find(b=>b.id===draft.id);if(!original){cancelRenovation();return;}

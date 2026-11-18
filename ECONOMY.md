@@ -1,24 +1,57 @@
-# Stillwater 2.0C beta economy
+# Stillwater business economy — beta
 
-Balance constants live in `economy.js`: 500 starting Gold, cabins 200, design changes 75, finishes free, removal refunds 50% of original purchase price. Renovations never increase the refundable purchase amount. Landscaping and freeform construction remain free.
+The active-play loop is now: improve appeal → host guests → serve them in shops → earn Gold → expand. No accounts, workers, inventory simulation, skills or offline earnings are added.
 
-Income is paid every 10 focused, visible seconds: `2 + floor(appeal / 15)` Gold (12–42/min). Suspended intervals are discarded; there is no offline catch-up. The saved interval remainder prevents reloads from replaying payouts. Income stops on save errors.
+## Prices and capacities
 
-Appeal is calculated from the village, not saved separately:
+| Building / action | Gold | Effect |
+| --- | ---: | --- |
+| Starting balance | 500 | Existing balances retained |
+| Timber Guest Cabin | 200 | 2 beds |
+| Cozy extra beds | 150 | 4 beds, +1 comfort contribution |
+| Supply Shop | 250 | Serves up to 4 nearby guests |
+| Expanded shelves | 175 | Serves up to 8 nearby guests |
+| Architectural renovation | 75 | Appearance only |
+| Finish changes | 0 | Appearance only |
+
+Removal refunds 50% of the original purchase price, excluding upgrades and renovations. Older free beta buildings still refund zero. Each business has one functional upgrade. All three architectural styles and existing finishes work for both blueprints, with a distinctive shopfront canopy, sign and crates.
+
+## Occupancy and earnings
+
+- Keep the 2 Gold per 10 active seconds baseline (12/min).
+- Appeal no longer pays Gold directly. Guest demand is `2 + floor(appeal / 10)`, currently at most 9 guests.
+- Each cabin can welcome `min(beds, 1 + entrance path + nearby nature + upgrade)` guests. Nature means a tree, outdoor accessory or water within 3 tiles of its center. Each contribution is 0 or 1; decorative duplicates do not stack.
+- Distribute demand across cabins one guest per round, preferring stronger comfort contributions and breaking ties by stable building ID. Guests are an abstract current occupancy count, not additional animated NPCs.
+- Every staying guest earns their cabin 1 Gold per interval (6/min).
+- Shops serve occupied cabins within 6 tiles, measured center-to-center. Each guest is allocated to the nearest shop with remaining capacity, once only. Additional shops share demand instead of duplicating it. No pathfinding simulation is needed.
+- Every customer earns their shop 1 Gold per interval (6/min).
+- The resulting ceiling is 120 Gold/min with 9 guests all served by shops. Baseline is available even with no buildings.
+
+A cabin and nearby shop cost 450. Without improvements they generate 24 Gold/min total; an entrance path or nearby nature allows two guests and 36/min. A ten-minute session then earns 360 Gold, enough for an upgrade or another business. Upgrades increase capacity, not guaranteed customers; the UI shows demand, current utilization, earnings and suggestions. Playtest these rates before adding industries.
+
+## Appeal
+
+Derived from player scenery and guest cabins, with the previous diminishing returns retained:
 
 | Source | Contribution / cap |
 | --- | --- |
-| Blueprint cabins | First 4: 5 each; next 4: 2 each (28) |
-| Architectural variety | 2 per additional design (4) |
+| Guest cabins | First 4: 5 each; next 4: 2 each (28) |
+| Cabin architectural variety | 2 per additional design (4) |
 | Trees | First 6: 1 each; next 6: 0.5 each; 1 per extra species (12) |
 | Paths | First 8: 0.5 each; next 8: 0.25 each (6) |
 | Outdoors | 2 per accessory kind (8); first 3 camps: 2 each, next 3: 1 each (9) |
-| Waterfront cabins | 2 each for first 4 cabins with water within 2.5 tiles of center (8) |
+| Waterfront cabins | 2 each for first 4 cabins with water within 2.5 tiles (8) |
 
-The total is rounded down, maximum 75. Background scenery is excluded. Repeated scenery additions stop contributing at their cap. Early income is deliberately modest: a renovation takes about 6.25 minutes at baseline, and additional cabins become quicker with landscaping. Playtest a 10–15 minute session before changing rates.
+Total is rounded down, maximum 75. Shops and background scenery do not inflate appeal. Rates and capacities are configurable in `economy.js`, `businesses.js` and the blueprint registry.
 
-Economy version 1 lives within the existing schema-2 village save. Earlier 2.0 beta villages receive 500 Gold; their existing free cabins have a zero purchase record and no removal refund. Saves are written before committing transactions. Undo reverses the actual transaction delta while keeping later income; a refund undo requires enough Gold to repay it. Permanent cabin identity and gameplay state survive renovation.
+## State and safeguards
 
-This is local gameplay state, not server-authoritative currency: exported save files can be edited. Accounts, offline earnings, skills, workers and production remain outside this milestone. Production saves and the root live game are unchanged.
+Continue schema-2 village saves and economy version 1. Supply Shops have their own blueprint ID with the same 2×2 footprint/entrance rules. Optional `gameplay.businessLevel` is absent/0 for existing buildings and 1 after upgrading. Appearance changes preserve this and all other gameplay data. Guest/customer counts are derived; calculations are cached until relevant world references change.
 
-Validation: `npm run check`, `node --test --test-isolation=none tests/*.test.js`, and browser scripts `check-economy`, `check-blueprints`, `check-renovations`, `check-mobile`, `check-villages`, `check-crossfade`. Browser tests use Chromium desktop and mobile touch emulation, not physical iOS hardware.
+Writes occur before committing a transaction. Undo reverses its actual Gold delta while retaining subsequent earnings. A failed or unaffordable action changes neither building state nor Gold. Functional upgrades do not raise removal refunds. Reload preserves the partial income interval without duplicating payouts. Background and suspended time do not accrue offline rewards.
+
+This remains local gameplay currency, not server-authoritative anti-cheat: exported saves can be edited. Freeform building and landscaping remain free and do not operate businesses. Production files, saves, audio and account settings are unchanged.
+
+## Validation
+
+Run `npm run check`, `node --test --test-isolation=none tests/*.test.js`, and browser scripts `check-businesses`, `check-economy`, `check-blueprints`, `check-renovations`, `check-mobile`, `check-villages`, `check-crossfade`. Browser validation uses Chromium desktop and mobile touch emulation; physical iOS testing is still recommended.

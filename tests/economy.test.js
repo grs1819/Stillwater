@@ -14,12 +14,12 @@ test('transactions, renovations and inverse undo cannot mint Gold',()=>{
  const renovated=renovateCabin(b,{design:'woodland',appearance:b.appearance});assert.equal(renovationCost(b,renovated),75);assert.equal(removalRefund(renovated),100);
  assert.equal(renovationCost(b,{...b,appearance:{exterior:'birch',roof:'slate'}}),0);
  e=transactGold(e,100);assert.equal(e.gold,400);e=transactGold(e,-100);e=transactGold(e,200);assert.equal(e.gold,500);
- e=transactGold(e,-200);e=advanceIncome(e,10000,0).economy;e=transactGold(e,200);assert.equal(e.gold,502,'undo retains income');
+ e=transactGold(e,-200);e=advanceIncome(e,10000,2).economy;e=transactGold(e,200);assert.equal(e.gold,502,'undo retains income');
  assert.throws(()=>transactGold({...e,gold:25},-75));assert.equal(e.gold,502);
 });
 test('income persists fractional interval without replaying payouts or offline time',()=>{
- let e=advanceIncome(initialEconomy(),15000,15).economy;assert.equal(e.gold,503);assert.equal(e.activeMs,5000);
- e=normalizeEconomy(JSON.parse(JSON.stringify(e)));assert.equal(advanceIncome(e,0,15).earned,0);assert.equal(advanceIncome(e,5000,15).earned,3);
+ let e=advanceIncome(initialEconomy(),15000,3).economy;assert.equal(e.gold,503);assert.equal(e.activeMs,5000);
+ e=normalizeEconomy(JSON.parse(JSON.stringify(e)));assert.equal(advanceIncome(e,0,3).earned,0);assert.equal(advanceIncome(e,5000,3).earned,3);
  assert.equal(activeElapsed(0,3600000,false),0);assert.equal(activeElapsed(0,3600000,true),2000);
  assert.equal(advanceIncome({...e,gold:ECONOMY.maxGold-1},5000,75).earned,1);
 });
