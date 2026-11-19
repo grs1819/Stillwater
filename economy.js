@@ -1,10 +1,12 @@
 // All first-pass balancing lives here. No wall-clock timestamps or offline rewards.
-export const ECONOMY=Object.freeze({startingGold:500,cabinCost:200,shopCost:250,renovationCost:75,refundRate:.5,intervalMs:10_000,baselineIncome:2,maxGold:1_000_000_000});
-export const initialEconomy=()=>({version:1,gold:ECONOMY.startingGold,activeMs:0});
+export const ECONOMY=Object.freeze({startingGold:1000,cabinCost:200,shopCost:250,renovationCost:75,refundRate:.5,intervalMs:5_000,baselineIncome:1.5,maxGold:1_000_000_000});
+export const initialEconomy=()=>({version:2,gold:ECONOMY.startingGold,activeMs:0,goldFraction:0});
 export function normalizeEconomy(value){
  if(value===undefined)return initialEconomy();
- if(value?.version!==1||!Number.isSafeInteger(value.gold)||value.gold<0||value.gold>ECONOMY.maxGold||!Number.isFinite(value.activeMs)||value.activeMs<0||value.activeMs>=ECONOMY.intervalMs)throw new Error('Invalid economy save. Original village retained.');
- return {version:1,gold:value.gold,activeMs:value.activeMs};
+ const legacy=value?.version===1,interval=legacy?10_000:ECONOMY.intervalMs;
+ if(![1,2].includes(value?.version)||!Number.isSafeInteger(value.gold)||value.gold<0||value.gold>ECONOMY.maxGold||!Number.isFinite(value.activeMs)||value.activeMs<0||value.activeMs>=interval||!legacy&&(!Number.isInteger(value.goldFraction)||value.goldFraction<0||value.goldFraction>3))throw new Error('Invalid economy save. Original village retained.');
+ // Preserve progress through the old ten-second interval without issuing a catch-up reward.
+ return {version:2,gold:value.gold,activeMs:legacy?value.activeMs/2:value.activeMs,goldFraction:legacy?0:value.goldFraction};
 }
 export function validatePaidGold(value=0){
  if(!Number.isSafeInteger(value)||value<0||value>ECONOMY.maxGold)throw new Error('Invalid cabin purchase record.');
@@ -35,9 +37,12 @@ export function visitorAppeal(world){
 }
 export function advanceIncome(economy,elapsedMs,income=ECONOMY.baselineIncome){
  if(!Number.isFinite(elapsedMs)||elapsedMs<0)throw new Error('Invalid active play duration.');
- if(!Number.isSafeInteger(income)||income<0)throw new Error('Invalid income rate.');
+ if(!Number.isSafeInteger(income*4)||income<0)throw new Error('Invalid income rate.');
  const total=economy.activeMs+elapsedMs,ticks=Math.floor(total/ECONOMY.intervalMs);
- const next=transactGold(economy,ticks*income);next.activeMs=total%ECONOMY.intervalMs;
+ // Keep quarter-Gold internally, paying whole Gold without losing fractional earnings.
+ const quarters=(economy.goldFraction||0)+ticks*Math.round(income*4);
+ const next=transactGold(economy,Math.floor(quarters/4));next.activeMs=total%ECONOMY.intervalMs;
+ next.goldFraction=next.gold===ECONOMY.maxGold?0:quarters%4;
  return {economy:next,earned:next.gold-economy.gold,ticks};
 }
 // Foreground heartbeat only. Gaps caused by suspended tabs are discarded, not caught up.

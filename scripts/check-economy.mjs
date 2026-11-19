@@ -5,7 +5,7 @@ const browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['-
 try {for(const mobile of [false,true]){
  const page=await browser.newPage({viewport:mobile?{width:390,height:844}:{width:1280,height:850},isMobile:mobile,hasTouch:mobile});const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/app.js*',async route=>{const response=await route.fetch();await route.fulfill({response,body:await response.text()+`
- clearInterval(incomeTimer);renderer.setAnimationLoop(null);
+ clearInterval(incomeTimer);if(!sessionStorage.getItem('balance-fixture')){economy.gold=500;save();sessionStorage.setItem('balance-fixture','1');}renderer.setAnimationLoop(null);
  window.probe={data:currentVillageData,earn:earnDuringPlay,save,undo,history:()=>history.length,
  place:(x,z)=>edit({position:[x,0,z],normal:[0,1,0],ground:true}),
  select:()=>edit({position:[0,0,0],buildingId:cabins[0].id}),remove:()=>edit({position:[0,0,0],buildingId:cabins[0].id},true),
@@ -23,11 +23,11 @@ try {for(const mobile of [false,true]){
  await openAppearance(page);await page.locator('#cabin-design').selectOption('craftsman');assert.equal(await page.locator('#renovation-confirm').isDisabled(),true);await page.locator('#renovation-cancel').click();
  await openAppearance(page);await page.locator('#cabin-roof').selectOption('slate');await page.locator('#renovation-confirm').click();assert.equal(await gold(),25);
  await page.evaluate(()=>probe.remove());assert.equal(await gold(),125);await page.evaluate(()=>probe.undo());assert.equal(await gold(),25);
- await page.evaluate(()=>probe.earn(15000));assert.equal(await gold(),29);
- await page.evaluate(()=>probe.undo());assert.equal(await gold(),29,'free finish undo retains income');
- await page.evaluate(()=>probe.undo());assert.equal(await gold(),104,'renovation undo retains income');
+ await page.evaluate(()=>probe.earn(15000));assert.equal(await gold(),34);
+ await page.evaluate(()=>probe.undo());assert.equal(await gold(),34,'free finish undo retains income');
+ await page.evaluate(()=>probe.undo());assert.equal(await gold(),109,'renovation undo retains income');
  await page.evaluate(()=>probe.save());const saved=await page.evaluate(()=>probe.data());await page.reload();await page.waitForFunction(()=>window.probe);assert.deepEqual(await page.evaluate(()=>probe.data()),saved);
- await page.evaluate(()=>probe.earn(5000));assert.equal(await gold(),108,'remainder survives reload, no duplicate payout');
+ await page.evaluate(()=>probe.earn(5000));assert.equal(await gold(),112,'remainder survives reload, no duplicate payout');
  // Quota failure must not remove a building, credit a refund, or create undo history.
  const before=await page.evaluate(()=>({data:probe.data(),history:probe.history()}));
  await page.evaluate(()=>{window.realSet=Storage.prototype.setItem;Storage.prototype.setItem=function(){throw new DOMException('Quota exceeded','QuotaExceededError');};probe.remove();Storage.prototype.setItem=window.realSet;});

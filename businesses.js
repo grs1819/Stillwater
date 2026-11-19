@@ -1,7 +1,7 @@
 import {SHOP,entrance,footprint} from './blueprints.js';
 import {ECONOMY,visitorAppeal} from './economy.js';
 // Abstract occupancy: deterministic, derived from the village, and never accrued offline.
-export const BUSINESS=Object.freeze({baseDemand:2,appealPerGuest:10,shopRadius:6,cabinCapacity:[2,4],shopCapacity:[4,8],cabinUpgrade:150,shopUpgrade:175,goldPerGuest:1,goldPerCustomer:1});
+export const BUSINESS=Object.freeze({baseDemand:2,appealPerGuest:10,shopRadius:6,cabinCapacity:[2,4],shopCapacity:[4,8],cabinUpgrade:150,shopUpgrade:175,goldPerGuest:.75,goldPerCustomer:.75});
 export const upgradeQuote=b=>({cost:b.blueprint===SHOP.id?BUSINESS.shopUpgrade:BUSINESS.cabinUpgrade,name:b.blueprint===SHOP.id?'Expanded shelves':'Cozy extra beds',capacity:(b.blueprint===SHOP.id?BUSINESS.shopCapacity:BUSINESS.cabinCapacity)[1]});
 export function upgradeBusiness(b){
  if((b.gameplay.businessLevel||0)!==0)throw new Error('This business is already fully upgraded.');
