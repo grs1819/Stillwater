@@ -1,3 +1,4 @@
+import {initialSkills,normalizeSkills} from './skills.js';
 import {ECONOMY,initialEconomy,normalizeEconomy,validatePaidGold} from './economy.js';
 import {LIMIT,key,normalize} from './town.js';
 import {levelSite,terrainLevel} from './terrain.js';
@@ -10,9 +11,9 @@ export const DESIGNS=Object.freeze({
  woodland:Object.freeze({name:'Woodland Cottage',version:1,peak:2.78,wallWidth:1.78,eave:.49,renovationCost:ECONOMY.renovationCost,constructionLevel:0}),
  craftsman:Object.freeze({name:'Craftsman Lodge',version:1,peak:2.08,wallWidth:1.62,eave:.49,renovationCost:ECONOMY.renovationCost,constructionLevel:0}),
 });
-export const EXTERIORS={honey:{wall:'#c6a171',frame:'#796044'},birch:{wall:'#ded4b3',frame:'#716655'}};
+export const EXTERIORS={honey:{wall:'#c6a171',frame:'#796044'},birch:{wall:'#ded4b3',frame:'#716655'},cedar:{wall:'#b77d61',frame:'#72533e'}};
 export const FINISHES={moss:{color:'#718a58',tier:'cottage'},slate:{color:'#718b94',tier:'estate'}};
-export const emptyWorld=()=>({schemaVersion:2,blocks:{},water:{},terrain:{},peak:0,buildings:[],economy:initialEconomy()});
+export const emptyWorld=()=>({schemaVersion:2,blocks:{},water:{},terrain:{},peak:0,buildings:[],economy:initialEconomy(),skills:initialSkills()});
 export function cabinAt(x,z,rotation=0,appearance={exterior:'honey',roof:'moss'},id=crypto.randomUUID()){
  return {id,blueprint:CABIN.id,definitionVersion:1,design:CABIN.design,position:[x===0?0:x,z===0?0:z],rotation,appearance:{...appearance},paidGold:0,gameplay:{}};
 }
@@ -62,6 +63,7 @@ export function validateWorld(value){
   const error=placementError(b,world);if(error)throw new Error(error);
   ids.add(b.id);world.buildings.push(b);
  }
+ world.skills=normalizeSkills(value.skills,world);
  return world;
 }
 // Derived obstruction data is never saved as a second copy of a cabin.
