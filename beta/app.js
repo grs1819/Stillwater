@@ -1,3 +1,5 @@
+import {developmentXP,hospitalityXP,levelGains,unlocked} from './skills.js';
+import {createSkillsView} from './skills-view.js';
 import {businessSummary,upgradeQuote,upgradeBusiness} from './businesses.js';
 import {ECONOMY,transactGold,removalRefund,renovationCost,advanceIncome,activeElapsed} from './economy.js';
 import {renovateCabin,emptyWorld,validateWorld,buildingAt,BLUEPRINTS,CABIN,SHOP,placementError,cabinOccupancy,navigationBlocks,footprint} from './blueprints.js';
@@ -107,6 +109,8 @@ const worldStoreOptions={validate:validateWorld,empty:emptyWorld,migrate:false};
 let guestVillages=createVillageStore({storage:villageStorage,namespace:saveNamespace,...worldStoreOptions});
 let villages=guestVillages,cloud=null,accountUser=null,accounts=null,accountBusy=false,deletionBusy=false;
 let state=villages.active?.data||emptyWorld();
+let skillProgress=state.skills;
+const skillView=createSkillsView($('#skills-list'));let lastSkillsView=null;
 let economy=state.economy,incomeBlocked=false,lastIncomeTime=performance.now();
 let water=state.water,terrain=state.terrain||{},levelTarget=null;
 const waterView=createWaterView(scene,material,box);
@@ -156,11 +160,22 @@ function updateEconomyUI(){
  }
  if(pendingCabin)showCabinGhost(pendingCabin);
 }
+function updateSkillsUI(){
+ if(lastSkillsView!==skillProgress){$('#skill-unlocks').textContent=skillView.update(skillProgress);lastSkillsView=skillProgress;}
+ const option=$('#cabin-exterior option[value="cedar"]'),available=unlocked(skillProgress,'cedar-exterior');
+ option.disabled=!available&&cabins.find(b=>b.id===selectedCabin)?.appearance.exterior!=='cedar';option.textContent=available?'Warm cedar':'Warm cedar · Construction 3';
+}
+function finishError(building,original=null){return building.appearance.exterior==='cedar'&&!unlocked(skillProgress,'cedar-exterior')&&original?.appearance.exterior!=='cedar'?'Warm cedar unlocks at Construction level 3.':null;}
+function presentLevelGains(before,after){
+ const gains=levelGains(before,after);if(!gains.length)return;
+ const message=gains.map(g=>`${g.name} · Level ${g.level}${g.unlocks.length?' — '+g.unlocks.map(u=>u.name).join(', ')+' unlocked':''}`).join(' · ');
+ const toast=$('#skill-toast');toast.textContent=message;toast.hidden=false;clearTimeout(presentLevelGains.timer);presentLevelGains.timer=setTimeout(()=>{toast.hidden=true;},4500);sound.effect('unlock');
+}
 function earnDuringPlay(elapsedMs){
  if(incomeBlocked||villages.error)return;
- const result=advanceIncome(economy,elapsedMs,currentBusiness().income);
- if(result.ticks&&!save({...currentVillageData(),economy:result.economy})){incomeBlocked=true;return;}
- economy=result.economy;if(result.ticks){updateEconomyUI();goldFeedback(result.earned);}
+ const report=currentBusiness(),result=advanceIncome(economy,elapsedMs,report.income),beforeSkills=skillProgress,nextSkills=hospitalityXP(skillProgress,report,result.ticks);
+ if(result.ticks&&!save({...currentVillageData(),economy:result.economy,skills:nextSkills})){incomeBlocked=true;return;}
+ economy=result.economy;skillProgress=nextSkills;if(result.ticks){updateEconomyUI();updateSkillsUI();goldFeedback(result.earned);presentLevelGains(beforeSkills,skillProgress);}
 }
 function incomeHeartbeat(){const now=performance.now(),elapsed=activeElapsed(lastIncomeTime,now,!document.hidden&&document.hasFocus());lastIncomeTime=now;if(elapsed)earnDuringPlay(elapsed);}
 function checkpointIncome(){lastIncomeTime=performance.now();if(!incomeBlocked&&!villages.error&&!save())incomeBlocked=true;}
@@ -169,7 +184,7 @@ function save(data=currentVillageData()){
  catch(error){villageMessage(error.message+' Keep this tab open and export your village.');return false;}
 }
 
-function updateUI(){const n=cottageCount(blocks);peak=Math.max(peak,n);const next=milestones.find(m=>peak<m.n);$('#population').textContent=`${(peak>=3?n*2:0)+Object.values(blocks).filter(b=>b.type==='camp').length*2} villagers`;$('#next-title').textContent=next?.name||'Room to keep growing';$('#progress-number').textContent=next?`${n} / ${next.n}`:`${n} cottages`;$('#progress').style.width=`${next?Math.min(100,n/next.n*100):100}%`;$('#next-description').textContent=next?`Grow to ${next.n} cottage plots to make your next discovery.`:'All discoveries unlocked. Make this clearing your own.';$('#discovery-count').textContent=`${milestones.filter(m=>peak>=m.n).length} / 4`;$('#journal').innerHTML=milestones.map(m=>`<div>${peak>=m.n?'✦':'○'} ${m.n} cottages · ${m.name}</div>`).join('');for(const [id,values]of Object.entries({wood:{birch:6,cedar:12},roof:{clay:9,slate:12}}))for(const option of $(`#${id}`).options)if(values[option.value])option.disabled=peak<values[option.value];$('#undo').disabled=!history.length;updateEconomyUI();syncFreeformPanel();}
+function updateUI(){const n=cottageCount(blocks);peak=Math.max(peak,n);const next=milestones.find(m=>peak<m.n);$('#population').textContent=`${(peak>=3?n*2:0)+Object.values(blocks).filter(b=>b.type==='camp').length*2} villagers`;$('#next-title').textContent=next?.name||'Room to keep growing';$('#progress-number').textContent=next?`${n} / ${next.n}`:`${n} cottages`;$('#progress').style.width=`${next?Math.min(100,n/next.n*100):100}%`;$('#next-description').textContent=next?`Grow to ${next.n} cottage plots to make your next discovery.`:'All discoveries unlocked. Make this clearing your own.';$('#discovery-count').textContent=`${milestones.filter(m=>peak>=m.n).length} / 4`;$('#journal').innerHTML=milestones.map(m=>`<div>${peak>=m.n?'✦':'○'} ${m.n} cottages · ${m.name}</div>`).join('');for(const [id,values]of Object.entries({wood:{birch:6,cedar:12},roof:{clay:9,slate:12}}))for(const option of $(`#${id}`).options)if(values[option.value])option.disabled=peak<values[option.value];$('#undo').disabled=!history.length;updateEconomyUI();syncFreeformPanel();updateSkillsUI();}
 const ghost=new THREE.Mesh(new THREE.BoxGeometry(1.01,.96,1.01),new THREE.MeshBasicMaterial({color:'#fff5bf',transparent:true,opacity:.28,depthWrite:false}));ghost.visible=false;scene.add(ghost);
 const invisible=new THREE.MeshBasicMaterial({visible:false});
 const timber={oak:'#c6a171',birch:'#ded4b3',cedar:'#b77d61'};
@@ -826,14 +841,16 @@ function rebuild(){
 }
 function commit(next,nextWater=water,nextTerrain=terrain,nextCabins=cabins,goldDelta=0){
  let nextEconomy;try{nextEconomy=transactGold(economy,goldDelta);}catch(error){notify(error.message);return false;}
- const nextPeak=Math.max(peak,cottageCount(next));
- if(!save({schemaVersion:2,blocks:next,water:nextWater,terrain:nextTerrain,peak:nextPeak,buildings:nextCabins,economy:nextEconomy}))return false;
+ const nextPeak=Math.max(peak,cottageCount(next)),beforeSkills=skillProgress;
+ const data={schemaVersion:2,blocks:next,water:nextWater,terrain:nextTerrain,peak:nextPeak,buildings:nextCabins,economy:nextEconomy};
+ const nextSkills=developmentXP(skillProgress,currentVillageData(),data);data.skills=nextSkills;
+ if(!save(data))return false;
  const actualDelta=nextEconomy.gold-economy.gold;
  cancelRenovation(false);clearPreview();
  const cue=editSound({blocks,water,terrain},{blocks:next,water:nextWater,terrain:nextTerrain});
  history.push(JSON.stringify({blocks,water,terrain,cabins,goldDelta:actualDelta}));if(history.length>80)history.shift();
- const before=peak;blocks=next;water=nextWater;terrain=nextTerrain;cabins=nextCabins;economy=nextEconomy;incomeBlocked=false;
- updateUI();rebuild();goldFeedback(actualDelta);sound.effect(cue);
+ const before=peak;blocks=next;water=nextWater;terrain=nextTerrain;cabins=nextCabins;economy=nextEconomy;skillProgress=nextSkills;incomeBlocked=false;
+ updateUI();rebuild();goldFeedback(actualDelta);sound.effect(cue);presentLevelGains(beforeSkills,skillProgress);
  for(const m of milestones)if(before<m.n&&peak>=m.n){notify(`✧ ${m.text}`);sound.effect('unlock');}
  return true;
 }
@@ -841,7 +858,7 @@ function undo(){
  if(renovationDraft){cancelRenovation();return;}clearPreview();if(!history.length)return;
  const previous=JSON.parse(history.at(-1));let nextEconomy;
  try{nextEconomy=transactGold(economy,-(previous.goldDelta||0));}catch(error){notify('Cannot undo yet. '+error.message);return;}
- const data={schemaVersion:2,blocks:previous.blocks,water:previous.water,terrain:previous.terrain||{},peak,buildings:previous.cabins||[],economy:nextEconomy};
+ const data={schemaVersion:2,blocks:previous.blocks,water:previous.water,terrain:previous.terrain||{},peak,buildings:previous.cabins||[],economy:nextEconomy,skills:skillProgress};
  if(!save(data))return;
  history.pop();const delta=nextEconomy.gold-economy.gold;({blocks,water,terrain,buildings:cabins,economy}=data);incomeBlocked=false;selectedCabin=null;
  syncCabinPanel();updateUI();rebuild();goldFeedback(delta);sound.effect('undo');ghost.visible=false;
@@ -871,7 +888,7 @@ function edit(hit,remove=false,paint=false){
   if(tool==='house'&&$('#building-mode').value!=='freeform'&&!remove){
     if(renovationDraft){notify('Confirm or cancel this renovation first.');return;}
     const b=selectedBuildingAt(x,z);
-    const error=placementError(b,currentVillageData());if(error){notify(error);return;}
+    const error=placementError(b,currentVillageData())||finishError(b);if(error){notify(error);return;}
     b.paidGold=BLUEPRINTS[b.blueprint].cost;if(commit(blocks,water,terrain,[...cabins,b],-b.paidGold)){sound.effect('wood');selectedCabin=null;syncCabinPanel();}return;
   }
   const reserved=cabinOccupancy(cabins,true),occupied=cabinOccupancy(cabins);
@@ -1025,14 +1042,20 @@ function setHelp(open){
   if($('#help-panel').hidden===open)sound.effect(open?'menuOpen':'menuClose');
   $('#help-panel').hidden=!open;
   $('#help-toggle').setAttribute('aria-expanded',String(open));
-  if(open)setTasks(false);
+  if(open){setTasks(false);setSkills(false);}
 }
 function setTasks(open){
   if($('#tasks-panel').hidden===open)sound.effect(open?'menuOpen':'menuClose');
-  if(open)setHelp(false);
+  if(open){setHelp(false);setSkills(false);}
   $('#tasks-panel').hidden=!open;
   $('#tasks-toggle').setAttribute('aria-expanded',String(open));
 }
+function setSkills(open){
+ const panel=$('#skills-panel');if(panel.hidden===open)sound.effect(open?'menuOpen':'menuClose');
+ if(open){cancelRenovation();clearPreview();setTasks(false);setHelp(false);updateSkillsUI();}
+ panel.hidden=!open;dock.classList.toggle('skills-open',open);$('#skills-toggle').setAttribute('aria-expanded',String(open));
+}
+$('#skills-toggle').onclick=()=>setSkills($('#skills-panel').hidden);
 function setDock(open){
   if(!open)cancelRenovation();
   if((dock.dataset.open==='true')!==open)sound.effect(open?'menuOpen':'menuClose');
@@ -1046,7 +1069,7 @@ function setDock(open){
   dockToggle.setAttribute('aria-label',open?'Close building menu':'Open building menu');
   dockToggle.title=(open?'Close':'Open')+' building menu (B)';
   $('#dock-caption').innerHTML=open?'A little room to create':'Build your town <kbd>B</kbd>';
-  if(!open){setTasks(false);setHelp(false);}
+  if(!open){setTasks(false);setHelp(false);setSkills(false);}
   // Restart the short logo bounce and water ripple on each toggle.
   dockToggle.classList.remove('animating');
   void dockToggle.offsetWidth;
@@ -1112,7 +1135,7 @@ const cabinGhost=createCabinView({box,beam:timberBeam,material,roofingMaterial,r
 const entranceArrow=new THREE.ArrowHelper(new THREE.Vector3(0,0,1),new THREE.Vector3(),.75,0x356346,.27,.24);scene.add(entranceArrow);entranceArrow.visible=false;
 function showCabinGhost(hit){
  const b=selectedBuildingAt(hit.position[0],hit.position[2],'preview');
- const error=placementError(b,currentVillageData())||fundsError(BLUEPRINTS[b.blueprint].cost);
+ const error=placementError(b,currentVillageData())||finishError(b)||fundsError(BLUEPRINTS[b.blueprint].cost);
  cabinGhost.update([b],(x,z)=>terrainHeight(terrain,x,z));cabinGhost.setValid(!error);cabinGhost.group.visible=true;
  showCabinFootprint(b,error?'#d78469':'#91ba8a');
  const angle=cabinRotation*Math.PI/2,dx=Math.sin(angle),dz=Math.cos(angle);
@@ -1137,7 +1160,7 @@ function syncCabinPanel(){
  $('#cabin-status').textContent=b?(renovationDraft?'Renovation preview · confirm to keep':BLUEPRINTS[b.blueprint].name):'';
  $('#cabin-new').textContent='← Buildings';$('#cabin-new').hidden=!b;$('#cabin-rotate').hidden=!!b;$('#cabin-rotate').disabled=!!b;
  $('#renovation-actions').hidden=!b;$('#renovation-confirm').disabled=!renovationDraft;$('#renovation-cancel').disabled=!renovationDraft;
- $('#cabin-rotate').textContent=`↻ Rotate · ${cabinRotation*90}°`;$('#appearance-toggle').textContent=b?'Customize':'Appearance';updateEconomyUI();
+ $('#cabin-rotate').textContent=`↻ Rotate · ${cabinRotation*90}°`;$('#appearance-toggle').textContent=b?'Customize':'Appearance';updateEconomyUI();updateSkillsUI();
 }
 function setBuildingDetail(which){
  for(const name of ['business','appearance']){const open=which===name;$('#'+name+'-panel').hidden=!open;$('#'+name+'-toggle').setAttribute('aria-expanded',String(open));}
@@ -1174,6 +1197,7 @@ for(const id of ['cabin-design','cabin-exterior','cabin-roof'])$('#'+id).onchang
  const b=cabins.find(b=>b.id===selectedCabin);
  if(!b){if(hoverHit)preview(hoverHit);return;}
  const next=renovateCabin(b,cabinChoices());
+ const locked=finishError(next,b);if(locked){notify(locked);syncCabinPanel();return;}
  if(next.design===b.design&&JSON.stringify(next.appearance)===JSON.stringify(b.appearance)){cancelRenovation();return;}
  renovationDraft=next;cabinView.setHidden(b.id);cabinGhost.update([next],(x,z)=>terrainHeight(terrain,x,z));cabinGhost.setValid(true);cabinGhost.group.visible=true;entranceArrow.visible=false;renderer.shadowMap.needsUpdate=true;syncCabinPanel();
 };
@@ -1188,12 +1212,13 @@ $('#renovation-confirm').onclick=()=>{
  const original=cabins.find(b=>b.id===draft.id);if(!original){cancelRenovation();return;}
  // Apply only appearance to the latest functional state, never a stale draft copy.
  const next=renovateCabin(original,{design:draft.design,appearance:draft.appearance});
+ const locked=finishError(next,original);if(locked){notify(locked);return;}
  if(commit(blocks,water,terrain,cabins.map(b=>b.id===next.id?next:b),-renovationCost(original,next))){sound.effect('wood');syncCabinPanel();}
 };
-function currentVillageData(){return {schemaVersion:2,blocks,water,terrain,peak,buildings:cabins,economy};}
+function currentVillageData(){return {schemaVersion:2,blocks,water,terrain,peak,buildings:cabins,economy,skills:skillProgress};}
 function loadVillage(slot){
- cancelRenovation(false);
- ({blocks,water,terrain,peak,buildings:cabins,economy}=slot?.data||emptyWorld());history=[];incomeBlocked=false;lastIncomeTime=performance.now();selectedCabin=null;selectedFreeform=null;inspectFreeform=false;setBuildingDetail(null);syncFreeformPanel();syncCabinPanel();levelTarget=null;
+ cancelRenovation(false);setSkills(false);clearTimeout(presentLevelGains.timer);$('#skill-toast').hidden=true;
+ ({blocks,water,terrain,peak,buildings:cabins,economy,skills:skillProgress}=slot?.data||emptyWorld());history=[];incomeBlocked=false;lastIncomeTime=performance.now();selectedCabin=null;selectedFreeform=null;inspectFreeform=false;setBuildingDetail(null);syncFreeformPanel();syncCabinPanel();levelTarget=null;
  resetPointerInteraction();updateUI();rebuild();recenter();
 }
 function refreshVillages(){
