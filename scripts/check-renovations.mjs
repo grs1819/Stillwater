@@ -36,8 +36,8 @@ window.probe={data:currentVillageData,save,undo,edit,selectTool,render:()=>rende
   await page.evaluate(()=>probe.select());await openAppearance(page);await page.locator('#cabin-design').selectOption('woodland');await page.evaluate(()=>probe.selectTool('tree'));assert.equal(await page.evaluate(()=>probe.draft()),null);assert.equal(await page.evaluate(()=>probe.visible()),true);
   await page.evaluate(()=>probe.gallery());await page.waitForTimeout(300);await page.screenshot({path:`/tmp/stillwater-designs-${mobile?'mobile':'desktop'}.png`});assert.deepEqual(errors,[]);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   for(const [i,design]of ['gable','woodland','craftsman'].entries()){
-   await page.evaluate(()=>{probe.selectTool('house');document.querySelector('#dock-toggle').click();});
-   await openAppearance(page);await page.locator('#cabin-design').selectOption(design);await openAppearance(page);await page.locator('#cabin-exterior').selectOption('birch');await openAppearance(page);await page.locator('#cabin-roof').selectOption('slate');await page.locator('#dock-toggle').click();
+   await page.evaluate(()=>{probe.selectTool('house');document.querySelector('button[data-panel=build]').click();});
+   await openAppearance(page);await page.locator('#cabin-design').selectOption(design);await openAppearance(page);await page.locator('#cabin-exterior').selectOption('birch');await openAppearance(page);await page.locator('#cabin-roof').selectOption('slate');await page.locator('button[data-panel=build]').click();
    const pos=await page.evaluate(i=>probe.point(-4+i*4,-4),i);
    if(mobile)await page.touchscreen.tap(pos.x,pos.y);else await page.mouse.move(pos.x,pos.y);
    const preview=await page.evaluate(()=>probe.ghost());

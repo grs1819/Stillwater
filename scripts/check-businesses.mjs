@@ -18,7 +18,7 @@ data:currentVillageData,report:currentBusiness,earn:earnDuringPlay,save,undo,
  const gold=()=>page.evaluate(()=>probe.data().economy.gold);
  const place=async(x,z)=>{const p=await page.evaluate(([x,z])=>probe.point(x,z),[x,z]);if(mobile){await page.touchscreen.tap(p.x,p.y);await page.locator('#cabin-place').tap();}else await page.mouse.click(p.x,p.y);};
  await place(0,0);assert.equal(await gold(),300);
- await page.locator('#dock-toggle').click();await page.locator('#building-mode').selectOption('shop');assert.match(await page.locator('#cabin-price').textContent(),/250 Gold/);await page.locator('#dock-toggle').click();
+ await page.locator('button[data-panel=build]').click();await page.locator('#building-mode').selectOption('shop');assert.match(await page.locator('#cabin-price').textContent(),/250 Gold/);await page.locator('button[data-panel=build]').click();
  const pos=await page.evaluate(()=>probe.point(4,0));if(mobile)await page.touchscreen.tap(pos.x,pos.y);else await page.mouse.move(pos.x,pos.y);
  assert.deepEqual(await page.evaluate(()=>probe.bounds()),[],'shop decoration respects placement clearance');const ghost=await page.evaluate(()=>probe.ghost());assert.equal(await gold(),300,'preview does not charge');
  if(mobile)await page.locator('#cabin-place').tap();else await page.mouse.click(pos.x,pos.y);
@@ -35,7 +35,7 @@ data:currentVillageData,report:currentBusiness,earn:earnDuringPlay,save,undo,
  await page.evaluate(()=>probe.earn(5000));assert.equal(await gold(),saved.economy.gold+3,'one remainder payout');
  await page.evaluate(()=>probe.select(0));await page.locator('#business-toggle').click();assert.match(await page.locator('#business-upgrade').textContent(),/150 Gold/);if(await page.locator('#business-panel').isHidden())await page.locator('#business-toggle').click();await page.locator('#business-upgrade').click();assert.equal(await page.evaluate(()=>probe.report().rows[0].capacity),4);
  await page.evaluate(()=>probe.select(1));await page.evaluate(()=>probe.render());await page.screenshot({path:`/tmp/stillwater-business-${mobile?'mobile':'desktop'}.png`});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
- await page.locator('#dock-toggle').click();await page.waitForTimeout(350);await page.evaluate(()=>probe.render());await page.screenshot({path:`/tmp/stillwater-shop-${mobile?'mobile':'desktop'}.png`});
+ await page.locator('button[data-panel=build]').click();await page.waitForTimeout(350);await page.evaluate(()=>probe.render());await page.screenshot({path:`/tmp/stillwater-shop-${mobile?'mobile':'desktop'}.png`});
  const before=await page.evaluate(()=>probe.data());await page.evaluate(()=>{const original=Storage.prototype.setItem;Storage.prototype.setItem=()=>{throw new DOMException('Quota','QuotaExceededError');};probe.remove(1);Storage.prototype.setItem=original;});assert.deepEqual(await page.evaluate(()=>probe.data()),before);
  await page.evaluate(()=>probe.remove(0));report=await page.evaluate(()=>probe.report());assert.equal(report.income,1.5);assert.equal(report.rows[0].customers,0);await page.evaluate(()=>probe.undo());assert.equal(await page.evaluate(()=>probe.data().buildings[0].gameplay.businessLevel),1);
  assert.equal(await page.evaluate(()=>localStorage.getItem('mosswood-v2')),'production-sentinel');assert.deepEqual(errors,[]);await page.close();

@@ -1033,27 +1033,47 @@ canvas.addEventListener('mousedown',e=>{if(e.button===1)e.preventDefault();});
 canvas.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault();});
 canvas.addEventListener('pointerleave',e=>{if(e.pointerType!=='touch'&&!pendingCabin)clearPreview();});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
-function selectTool(value){cancelRenovation(false);setBuildingDetail(null);selectedFreeform=null;inspectFreeform=false;if(value!=='house')selectedCabin=null;clearPreview();cancelHold();closeTouchMenu();tool=value;$('#water-options').hidden=value!=='water';$('#building-materials').hidden=value!=='house';syncCabinPanel();syncFreeformPanel();$('#tree-options').hidden=value!=='tree';$('#path-options').hidden=value!=='path';$('#deck-options').hidden=value!=='balcony';$('#camp-options').hidden=value!=='camp';$('#terrain-options').hidden=value!=='terrain';document.querySelectorAll('[data-tool]').forEach(b=>{b.classList.toggle('active',b.dataset.tool===tool);b.setAttribute('aria-pressed',String(b.dataset.tool===tool));});ghost.visible=false;}
+function selectTool(value){setSettlement(false);setSkills(false);cancelRenovation(false);setBuildingDetail(null);selectedFreeform=null;inspectFreeform=false;if(value!=='house')selectedCabin=null;clearPreview();cancelHold();closeTouchMenu();tool=value;$('#water-options').hidden=value!=='water';$('#building-materials').hidden=value!=='house';syncCabinPanel();syncFreeformPanel();$('#tree-options').hidden=value!=='tree';$('#path-options').hidden=value!=='path';$('#deck-options').hidden=value!=='balcony';$('#camp-options').hidden=value!=='camp';$('#terrain-options').hidden=value!=='terrain';document.querySelectorAll('[data-tool]').forEach(b=>{b.classList.toggle('active',b.dataset.tool===tool);b.setAttribute('aria-pressed',String(b.dataset.tool===tool));});ghost.visible=false;}
 document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>selectTool(b.dataset.tool));
 $('#undo').onclick=undo;
 document.querySelectorAll('.dock select').forEach(select=>select.addEventListener('change',clearPreview));
 const dock=$('.dock'), dockMenu=$('#build-menu'), dockToggle=$('#dock-toggle');
+function syncPanelTabs(){
+ const open=dock.dataset.open==='true';
+ const active=!$('#settlement-panel').hidden?'settlement':!$('#skills-panel').hidden?'skills':'build';
+ dock.dataset.panel=active;
+ document.querySelectorAll('button[data-panel]').forEach(b=>b.setAttribute('aria-expanded',String(open&&b.dataset.panel===active)));
+}
+function setSettlement(open){
+ if(open){cancelRenovation();clearPreview();setSkills(false);setTasks(false);setHelp(false);}
+ $('#settlement-panel').hidden=!open;if(open)$('#appeal-details').open=true;dock.classList.toggle('settlement-open',open);
+ syncPanelTabs();
+}
+document.querySelectorAll('button[data-panel]').forEach(button=>button.onclick=()=>{
+ const name=button.dataset.panel;
+ if(dock.dataset.open==='true'&&dock.dataset.panel===name){setDock(false);return;}
+ setSettlement(false);setSkills(false);setTasks(false);setHelp(false);setDock(true);
+ if(name==='skills')setSkills(true);
+ if(name==='settlement')setSettlement(true);
+ syncPanelTabs();
+});
+
 function setHelp(open){
   if($('#help-panel').hidden===open)sound.effect(open?'menuOpen':'menuClose');
   $('#help-panel').hidden=!open;
   $('#help-toggle').setAttribute('aria-expanded',String(open));
-  if(open){setTasks(false);setSkills(false);}
+  if(open){setSettlement(false);setTasks(false);setSkills(false);}
 }
 function setTasks(open){
   if($('#tasks-panel').hidden===open)sound.effect(open?'menuOpen':'menuClose');
-  if(open){setHelp(false);setSkills(false);}
+  if(open){setSettlement(false);setHelp(false);setSkills(false);}
   $('#tasks-panel').hidden=!open;
   $('#tasks-toggle').setAttribute('aria-expanded',String(open));
 }
 function setSkills(open){
  const panel=$('#skills-panel');if(panel.hidden===open)sound.effect(open?'menuOpen':'menuClose');
- if(open){cancelRenovation();clearPreview();setTasks(false);setHelp(false);updateSkillsUI();}
- panel.hidden=!open;dock.classList.toggle('skills-open',open);$('#skills-toggle').setAttribute('aria-expanded',String(open));
+ if(open){setSettlement(false);cancelRenovation();clearPreview();setTasks(false);setHelp(false);updateSkillsUI();}
+ panel.hidden=!open;dock.classList.toggle('skills-open',open);$('#skills-toggle').setAttribute('aria-expanded',String(open));syncPanelTabs();
 }
 $('#skills-toggle').onclick=()=>setSkills($('#skills-panel').hidden);
 function setDock(open){
@@ -1061,7 +1081,7 @@ function setDock(open){
   if((dock.dataset.open==='true')!==open)sound.effect(open?'menuOpen':'menuClose');
   if(open)setAudioPanel(false);
   if(open)clearPreview();
-  if(!open && dockMenu.contains(document.activeElement))dockToggle.focus();
+  if(!open && dockMenu.contains(document.activeElement))document.querySelector('button[data-panel=build]').focus();
   dock.dataset.open=String(open);
   dockMenu.inert=!open;
   dockMenu.setAttribute('aria-hidden',String(!open));
@@ -1069,7 +1089,8 @@ function setDock(open){
   dockToggle.setAttribute('aria-label',open?'Close building menu':'Open building menu');
   dockToggle.title=(open?'Close':'Open')+' building menu (B)';
   $('#dock-caption').innerHTML=open?'A little room to create':'Build your town <kbd>B</kbd>';
-  if(!open){setTasks(false);setHelp(false);setSkills(false);}
+  if(!open){setSettlement(false);setTasks(false);setHelp(false);setSkills(false);}
+  syncPanelTabs();
   // Restart the short logo bounce and water ripple on each toggle.
   dockToggle.classList.remove('animating');
   void dockToggle.offsetWidth;
@@ -1149,12 +1170,15 @@ function showCabinFootprint(b,color){
  const cells=footprint(b),xs=cells.map(c=>c[0]),zs=cells.map(c=>c[1]);
  ghost.visible=true;ghost.position.set((Math.min(...xs)+Math.max(...xs))/2,terrainHeight(terrain,...b.position)+.08,(Math.min(...zs)+Math.max(...zs))/2);ghost.scale.set(2,.12,2);ghost.material.color.set(color);
 }
+function syncDesignCards(){document.querySelectorAll('[data-design]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.design===$('#cabin-design').value)));}
+document.querySelectorAll('[data-design]').forEach(b=>b.onclick=()=>{$('#cabin-design').value=b.dataset.design;$('#cabin-design').dispatchEvent(new Event('change',{bubbles:true}));});
 function syncCabinPanel(){
  const b=cabins.find(b=>b.id===selectedCabin);if(!b)selectedCabin=null;
  dock.classList.toggle('cabin-context',!!b);
  cabinSelection.visible=!!b;cabinSelection.scale.set(1,1,1);
  if(b){const cells=footprint(b);cabinSelection.position.set(cells.reduce((n,c)=>n+c[0],0)/4,terrainHeight(terrain,...b.position)+.12,cells.reduce((n,c)=>n+c[1],0)/4);}
  if(b){const shown=renovationDraft||b;$('#building-mode').value=b.blueprint===SHOP.id?'shop':'cabin';$('#cabin-design').value=shown.design;$('#cabin-exterior').value=shown.appearance.exterior;$('#cabin-roof').value=shown.appearance.roof;}
+ syncDesignCards();
  const active=$('#building-mode').value!=='freeform';
  $('#cabin-options').hidden=!active;$('#freeform-options').hidden=active;
  $('#cabin-status').textContent=b?(renovationDraft?'Renovation preview · confirm to keep':BLUEPRINTS[b.blueprint].name):'';
@@ -1194,6 +1218,7 @@ function cancelRenovation(refresh=true){
  if(refresh)syncCabinPanel();
 }
 for(const id of ['cabin-design','cabin-exterior','cabin-roof'])$('#'+id).onchange=()=>{
+ syncDesignCards();
  const b=cabins.find(b=>b.id===selectedCabin);
  if(!b){if(hoverHit)preview(hoverHit);return;}
  const next=renovateCabin(b,cabinChoices());
