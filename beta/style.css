@@ -256,3 +256,42 @@ header .economy-status{pointer-events:auto;position:relative;display:block;min-w
 .skill-card{display:flex;gap:9px;padding:8px 0;border-bottom:1px solid #dce3d1}.skill-card>svg{width:25px;height:25px;flex-shrink:0;margin-top:4px;color:var(--pine)}.skill-body{flex:1;min-width:0}.skill-title{display:flex;justify-content:space-between;gap:8px;font-size:12px}.skill-level{font-size:11px}.skill-card progress{display:block;width:100%;height:6px;margin:6px 0;border:0;border-radius:4px;overflow:hidden;accent-color:#7e9b66;background:#e1e7d6}.skill-card progress::-webkit-progress-bar{background:#e1e7d6}.skill-card progress::-webkit-progress-value{background:#7e9b66}.skill-card progress::-moz-progress-bar{background:#7e9b66}.skill-card p{margin:3px 0;font-size:10px;line-height:1.35}.skill-source{color:#65745d}#skill-unlocks{font-size:11px;margin:10px 0}.skills-help summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-size:11px}.skills-help summary::after{content:'⌄';margin-left:auto}.skills-help p{font-size:11px;line-height:1.45;margin:0 0 7px}
 #skill-toast{position:fixed;z-index:30;top:calc(100px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100vw - 100px);padding:10px 14px;border:1px solid #b8caa5;border-radius:16px;background:#faf8eff5;color:var(--pine);font:12px Georgia,serif;text-align:center;pointer-events:none;box-shadow:0 4px 16px #334b331c;animation:skill-appear .25s ease-out}#skill-toast[hidden]{display:none}@keyframes skill-appear{from{opacity:0}to{opacity:1}}@media(prefers-reduced-motion:reduce){#skill-toast{animation:none}}
 @media(max-width:600px){.dock-heading h2{display:none}.dock-actions{width:100%;justify-content:space-between}.dock.skills-open .dock-panel{max-height:62dvh}.skill-card{padding:6px 0}}
+
+/* Woodland navigation: one shared panel, sidebar on desktop and a thumb dock on phones. */
+.village-tabs{display:flex;pointer-events:auto;background:#f8f4e9;border:1px solid #b9c7ab;border-radius:16px;padding:4px;gap:4px;box-shadow:0 5px 20px #243d2926;margin:6px auto 0;width:max-content}
+.village-tabs button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:76px;min-height:52px;border:0;border-radius:12px;background:transparent;color:#34503c;font:600 11px Georgia,serif;cursor:pointer}
+.village-tabs button[aria-expanded="true"]{background:#28563f;color:#fff9e9}
+.village-tabs svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.village-tabs button:focus-visible{outline:3px solid #bc8e3b;outline-offset:2px}
+.dock-launcher{display:none}#skills-toggle{display:none}
+.dock.settlement-open .palette{display:none}
+#settlement-panel h3{font:22px Georgia,serif;color:#28563f;margin:10px 0}
+#settlement-panel #appeal-details{display:block;max-width:none}
+#settlement-panel .appeal-panel{position:static;width:auto;max-width:none;box-shadow:none;border:0;background:transparent;padding:10px 0}
+#settlement-panel summary{padding:12px 0;font-size:13px}
+.settlement-note{font-size:12px;line-height:1.6;color:#65765b}
+.dock .dock-panel{background:#faf6ebf5;border-color:#c7d1bb}
+@media(min-width:851px) and (pointer:fine){
+ .dock,.dock.skills-open,.dock.cabin-context,.dock.freeform-context{left:auto;right:14px;bottom:24px;transform:none;width:440px;display:flex;align-items:flex-end;gap:6px}
+ .dock-shell{width:350px;flex-shrink:0;transform-origin:right bottom}
+ .village-tabs{flex-direction:column;margin:0;flex-shrink:0}
+ .village-tabs button{min-width:66px;min-height:64px;font-size:10px}
+ .dock .dock-panel{max-height:calc(100dvh - 160px);padding:12px}
+ .dock .palette{display:flex;flex-direction:column;align-items:stretch;gap:10px}
+ .dock.skills-open .palette,.dock.settlement-open .palette{display:none}
+ .dock .tool-group{min-width:0}.dock .tools{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
+ .dock .material-group,.dock .water-options{width:100%;border-left:0;border-top:1px solid #d9dfce;padding:10px 0 0;min-width:0}
+ .dock .material-group select{width:100%;min-width:0}
+ .dock .dock-heading h2{display:none}.dock .dock-heading{justify-content:flex-end}
+}
+@media(max-width:850px),(pointer:coarse){
+ .dock,.dock.skills-open{width:min(440px,calc(100vw - 16px));bottom:max(6px,env(safe-area-inset-bottom))}
+ .village-tabs{width:100%;justify-content:space-around}.village-tabs button{flex:1;min-height:48px}
+ .dock .dock-panel,.dock.skills-open .dock-panel,.dock.settlement-open .dock-panel{max-height:min(48dvh,390px)}
+ .dock .dock-actions{justify-content:flex-end;gap:6px}
+}
+@media(prefers-reduced-motion:reduce){.dock-shell{transition:none}}
+.design-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;grid-column:1/-1;margin:5px 0}
+.design-cards button{padding:5px;min-height:70px;border:1px solid #c9d1bd;border-radius:10px;background:#f4efdf;color:#3c563d;cursor:pointer;font:11px Georgia,serif}
+.design-cards button[aria-pressed=true]{background:#e2ebd8;border-color:#416e4b;box-shadow:inset 0 0 0 1px #416e4b}
+.design-cards svg{display:block;width:64px;max-width:100%;height:44px;margin:auto;stroke:#5f513b;stroke-width:1.5;fill:#efd9a1;stroke-linejoin:round}.design-cards .mini-wall{fill:#bf9d6e}.design-cards .mini-roof{fill:#718760}

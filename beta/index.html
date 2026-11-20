@@ -17,7 +17,7 @@
       <h1 class="brand-title"><img class="brand-logo" src="./assets/stillwater-logo.png" alt="Stillwater — a little place to grow" width="1536" height="1024"></h1>
     </div>
     <div class="status economy-status"><div class="gold-row"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="#dfb65e" stroke="#ac813b" stroke-width="1.5"/><path d="M12 6v12m3-9c-6-4-8 5-2 3s4 7-4 3" fill="none" stroke="#83652e" stroke-width="1.5"/></svg><span id="gold-balance">1,000</span><span class="gold-label">Gold</span><output id="gold-feedback" aria-live="polite"></output></div>
-      <details id="appeal-details"><summary id="appeal-summary">Appeal 0 · +18/min</summary><div class="appeal-panel"><strong>Visitor Appeal</strong><div id="appeal-breakdown"></div><p id="business-overview"></p><p>Appeal attracts guests instead of directly paying Gold. Decorations have diminishing returns. Income arrives every 5 active seconds; no offline earnings.</p></div></details>
+
       <span id="population">0 villagers</span></div>
   </header>
   <button id="audio-toggle" class="audio-toggle" aria-label="Sound settings" title="Sound settings" aria-expanded="false" aria-controls="audio-panel"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4 5 9H2v6h3l6 5ZM15 8c3 2 3 6 0 8M18 5c5 4 5 10 0 14"/></svg></button>
@@ -73,6 +73,7 @@
             <div class="dock-actions"><button id="undo" class="secondary" disabled>↶ Undo</button>
             <button id="skills-toggle" class="secondary" aria-expanded="false" aria-controls="skills-panel"><svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V11M12 15C4 15 3 10 3 5c6 0 9 3 9 7m0-2c0-5 3-7 9-7 0 6-3 10-9 10"/></svg> Skills</button><button id="tasks-toggle" class="secondary" aria-expanded="false" aria-controls="tasks-panel">✧ <span>Tasks</span><span id="discovery-count">0 / 4</span></button><button id="help-toggle" class="secondary" aria-expanded="false" aria-controls="help-panel">? Help</button></div>
           </div>
+          <section id="settlement-panel" aria-label="Settlement" hidden><h3>Your settlement</h3>      <details id="appeal-details"><summary id="appeal-summary">Appeal 0 · +18/min</summary><div class="appeal-panel"><strong>Visitor Appeal</strong><div id="appeal-breakdown"></div><p id="business-overview"></p><p>Appeal attracts guests instead of directly paying Gold. Decorations have diminishing returns. Income arrives every 5 active seconds; no offline earnings.</p></div></details><p class="settlement-note">Grow a welcoming retreat. Skills show your next unlocks; Tasks track village discoveries.</p></section>
           <section id="skills-panel" aria-label="Founding skills" hidden>
             <div id="skills-list"></div><p id="skill-unlocks"></p>
             <details class="skills-help"><summary>How XP works</summary><p>Four founding skills, Levels 1–20.</p><p>Planting and building XP reward growth beyond this village’s previous largest tree, building, and upgrade counts. Undo and removal keep XP, but rebuilding to an old count gives no extra XP.</p><p>Hospitality comes from guests and customers during active payouts. Baseline Gold and cosmetic changes give no XP. Conservation awaits future habitat activities.</p></details>
@@ -109,7 +110,7 @@
                 <div id="business-panel" hidden><p id="business-description"></p><p id="business-hint"></p><button id="business-upgrade" class="secondary"></button><p id="business-upgrade-note" role="status"></p></div>
                 <div id="appearance-panel" hidden>
                   <p id="renovation-price" hidden></p>
-                  <label for="cabin-design">DESIGN</label><select id="cabin-design"><option value="gable">Frontier Cabin</option><option value="woodland">Woodland Cottage</option><option value="craftsman">Craftsman Lodge</option></select>
+                  <div class="design-cards" role="group" aria-label="Architectural designs"><button type="button" data-design="gable" aria-pressed="true"><svg viewBox="0 0 64 48" aria-hidden="true"><path class="mini-wall" d="M13 25h38v20H13Z"/><path class="mini-roof" d="M8 27 32 10 56 27Z"/><path d="M28 45V30h9v15M17 31h6v7h-6Z M42 31h6v7h-6Z"/></svg><span>Frontier</span></button><button type="button" data-design="woodland" aria-pressed="false"><svg viewBox="0 0 64 48" aria-hidden="true"><path class="mini-wall" d="M13 25h38v20H13Z"/><path class="mini-roof" d="M10 29 32 3 54 29Z"/><path d="M28 45V30h9v15M17 31h6v7h-6Z M42 31h6v7h-6Z"/><path d="M16 24h32M32 7v17M16 40h9m16 0h9"/></svg><span>Woodland</span></button><button type="button" data-design="craftsman" aria-pressed="false"><svg viewBox="0 0 64 48" aria-hidden="true"><path class="mini-wall" d="M13 25h38v20H13Z"/><path class="mini-roof" d="M3 25 32 12 61 25Z"/><path d="M28 45V30h9v15M17 31h6v7h-6Z M42 31h6v7h-6Z"/><path d="M48 19V7h6v15M8 45h48M13 27h38"/></svg><span>Craftsman</span></button></div><label for="cabin-design">DESIGN</label><select id="cabin-design"><option value="gable">Frontier Cabin</option><option value="woodland">Woodland Cottage</option><option value="craftsman">Craftsman Lodge</option></select>
                   <label for="cabin-exterior">EXTERIOR</label><select id="cabin-exterior"><option value="honey">Honey timber</option><option value="birch">Pale birch</option><option value="cedar" disabled>Warm cedar · Construction 3</option></select>
                   <label for="cabin-roof">ROOF</label><select id="cabin-roof"><option value="moss">Living moss · green</option><option value="slate">Standing seam · slate blue</option></select>
                   <p id="renovation-funds" role="status"></p><div id="renovation-actions" hidden><button id="renovation-confirm" class="secondary" disabled>Confirm · Free</button><button id="renovation-cancel" class="secondary" disabled>Cancel</button></div>
@@ -179,7 +180,11 @@
         </div>
       </div>
     </div>
-    <div class="dock-launcher">
+    <nav class="village-tabs" aria-label="Village panels">
+      <button data-panel="build" aria-expanded="false" aria-controls="build-menu"><svg viewBox="0 0 24 24"><path d="m4 20 10-10m-4-5 4-3 7 7-3 4-4-4-3 1-3-3Z"/></svg><span>Build</span></button>
+      <button data-panel="skills" aria-expanded="false" aria-controls="skills-panel"><svg viewBox="0 0 24 24"><path d="M12 22V11M12 15C4 15 3 10 3 5c6 0 9 3 9 7m0-2c0-5 3-7 9-7 0 6-3 10-9 10"/></svg><span>Skills</span></button>
+      <button data-panel="settlement" aria-expanded="false" aria-controls="settlement-panel"><svg viewBox="0 0 24 24"><path d="m2 10 5-5 5 5m0-3 5-5 5 5M4 10v8h6v-8m4-3v11h6V7M7 14v4m10-7v7"/></svg><span>Settlement</span></button>
+    </nav><div class="dock-launcher">
       <button id="dock-toggle" class="logo-toggle" aria-expanded="false" aria-controls="build-menu" aria-label="Open building menu" title="Open building menu (B)">
         <img src="./assets/stillwater-mark.png" alt="" width="48" height="48">
         <span class="dock-chevron" aria-hidden="true"></span>
@@ -198,6 +203,6 @@
     <div><button id="cabin-placement-rotate" class="secondary">↻ Rotate</button><button id="cabin-place" class="secondary">Place cabin</button><button id="cabin-placement-cancel" class="secondary">Cancel</button></div>
   </section>
   <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
-  <script type="module" src="./app.js?v=founding-skills-1"></script>
+  <script type="module" src="./app.js?v=woodland-tabs-1"></script>
 </body>
 </html>
