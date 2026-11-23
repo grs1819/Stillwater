@@ -19,9 +19,10 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
  }
  const outlineMaterial=preview?new THREE.LineBasicMaterial({color:0x507e57,transparent:true,opacity:.9}):null;
  function dispose(g){g.traverse(o=>{if(o.geometry)o.geometry.dispose();});}
+ function cottagePeak(id){return id==='woodland'?2.48:id==='craftsman'?2.28:2.32;}
  function build(b){
   const shop=b.blueprint===SHOP.id,level=b.gameplay.businessLevel||0,upgraded=level>0;
-  const g=new THREE.Group(),{wall,frame}=EXTERIORS[b.appearance.exterior],finish=FINISHES[b.appearance.roof],design=DESIGNS[b.design],peak=design.peak+(level>=2?(shop?.2:.62):0)+(level===3?.12:0),cottage=b.design==='woodland',lodge=b.design==='craftsman',half=design.wallWidth/2,lo=.5-half,hi=.5+half,frontWall=hi-(upgraded&&!shop?.28:0),wallDepth=design.wallWidth-(upgraded&&!shop?.28:0);
+  const g=new THREE.Group(),{wall,frame}=EXTERIORS[b.appearance.exterior],finish=FINISHES[b.appearance.roof],design=DESIGNS[b.design],peak=(cottagePeak(b.design))+(level>=2?(shop?.12:.32):0)+(level===3?.12:0),cottage=b.design==='woodland',lodge=b.design==='craftsman',half=design.wallWidth/2,lo=.5-half,hi=.5+half,frontWall=hi-(upgraded&&!shop?.28:0),wallDepth=design.wallWidth-(upgraded&&!shop?.28:0);
   g.userData={blueprint:b.blueprint,design:b.design,appearance:{...b.appearance},businessLevel:level};
   box(g,1.94,.16,1.94,.5,.08,.5,'#aaa58d');
   if(shop){
@@ -37,18 +38,20 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
   for(const x of [lo+.03,hi-.03])for(const z of [lo+.03,hi-.03])box(g,.12,1.5,.12,x,.88,z,frame);
   for(const z of [lo-.02,hi+.02]){
    box(g,design.wallWidth+.1,.12,.12,.5,1.5,z,frame);
-   beam(g,[lo-.03,1.5,z],[.5,peak-.04,z],.1,frame);beam(g,[.5,peak-.04,z],[hi+.03,1.5,z],.1,frame);
-   beam(g,[.5,1.5,z],[.5,peak-.07,z],.09,frame);
-   for(const x of [lo+.03,hi-.03])beam(g,[x,1.12,z],[x+(x<0?.32:-.32),1.48,z],.075,frame);
+   if(!(level===3&&z>0))beam(g,[.5,1.5,z],[.5,peak-.07,z],.065,frame);
+   for(const x of [lo+.03,hi-.03])beam(g,[x,1.23,z],[x+(x<.5?.20:-.20),1.48,z],.055,frame);
   }
-  for(let i=0;i<9;i++)for(const x of (shop?[lo-.005]:[lo-.005,hi+.005]))box(g,.025,.025,wallDepth,x,.28+i*.13,.5-(upgraded&&!shop?.14:0),frame);
+  // Subtle board joints instead of heavy dark ladder-like battens.
+  const boardTint='#'+new THREE.Color(wall).multiplyScalar(.90).getHexString();
+  for(let i=0;i<8;i++)for(const x of (shop?[lo-.005]:[lo-.005,hi+.005]))box(g,.012,.009,wallDepth,x,.28+i*.15,.5-(upgraded&&!shop?.14:0),boardTint);
+  if(!shop)for(let i=0;i<8;i++)box(g,design.wallWidth-.12,.009,.012,.5,.28+i*.15,frontWall+.008,boardTint);
   // Entrance faces local +Z. The reserved approach tile lies directly ahead.
   if(!shop){box(g,.49,.94,.07,0,.63,frontWall+.02,frame);box(g,.35,.8,.08,0,.63,frontWall+.06,'#a99067');
   box(g,.045,.045,.035,.11,.66,frontWall+.11,'#e8c16e');}
   box(g,.68,.1,.3,0,.05,1.62,'#aaa58d');
   for(const [x,z,side]of (shop?[]:[[.94,frontWall+.025,false],[lo-.025,.5,true],[hi+.025,.5,true]])){
    box(g,side?.065:(lodge?.72:.57),lodge?.82:.65,side?(lodge?.96:.57):.065,x,.95,z,frame);
-   box(g,side?.08:(lodge?.58:.43),lodge?.67:.5,side?(lodge?.82:.43):.08,x,.95,z,'#657e79');
+   box(g,side?.08:(lodge?.58:.43),lodge?.67:.5,side?(lodge?.82:.43):.08,x,.95,z,'#b9bd9f');
    box(g,side?.09:.035,lodge?.67:.5,side?.035:.09,x,.95,z,wall);
   }
   const left=-design.eave,right=1+design.eave,back=-.49,front=1.49;
@@ -56,9 +59,17 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
   // Upward winding lets the existing moss/seam detail generator follow each roof face.
   for(let i=0;i<vertices.length;i+=9){const b=vertices.slice(i+3,i+6);vertices.splice(i+3,3,...vertices.slice(i+6,i+9));vertices.splice(i+6,3,...b);}
   const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));geo.computeVertexNormals();
-  const roof=new THREE.Mesh(geo,roofingMaterial(finish.color,finish.tier));roof.castShadow=true;roof.receiveShadow=true;g.add(roof);const detailVertices=vertices.map((v,i)=>i%3===0?.5+(v-.5)*.9:i%3===2?.5+(v-.5)*.9:v);
-  for(let i=0;i<detailVertices.length;i+=3)detailVertices[i+1]=peak-Math.abs(detailVertices[i]-.5)*(peak-1.48)/(.5+design.eave);
-  roofDetails(g,detailVertices,finish.tier,finish.color);
+  const roof=new THREE.Mesh(geo,roofingMaterial(finish.color,finish.tier));roof.castShadow=true;roof.receiveShadow=true;g.add(roof);
+  // Clean continuous roof edges; quiet seams follow the planes without stone-like moss chunks.
+  for(const z of [back+.035,front-.035]){
+   beam(g,[left+.035,1.48,z],[.5,peak,z],.075,frame);beam(g,[.5,peak,z],[right-.035,1.48,z],.075,frame);
+  }
+  for(const x of [left+.025,right-.025])box(g,.045,.065,1.95,x,1.46,.5,frame);
+  const roofTint='#'+new THREE.Color(finish.color).multiplyScalar(finish.tier==='estate'?.86:1.04).getHexString();
+  for(let z=back+.16;z<front-.10;z+=finish.tier==='estate'?.22:.42){
+   beam(g,[left+.03,1.50,z],[.5,peak+.018,z],finish.tier==='estate'?.013:.008,roofTint);
+   beam(g,[.5,peak+.018,z],[right-.03,1.50,z],finish.tier==='estate'?.013:.008,roofTint);
+  }
   // Solid gables behind the visible trusses.
   for(const z of [lo,hi-(!shop&&level===3?.24:0)]){
    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute([lo,1.49,z,hi,1.49,z,.5,peak-.09,z, .5,peak-.09,z,hi,1.49,z,lo,1.49,z],3));geo.computeVertexNormals();g.add(new THREE.Mesh(geo,material(wall)));
@@ -72,7 +83,7 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
    }
    for(const x of [-.31,.31]){box(g,.07,1.12,.07,x,.62,1.69,frame);beam(g,[x,.92,1.69],[0,1.35,1.69],.065,frame);}
    const canopy=box(g,.77,.08,.48,0,1.32,1.64,finish.color);canopy.rotation.x=.13;
-   for(const z of [lo-.025,hi+.025])for(const x of [lo+.1,hi-.1])beam(g,[x,1.52,z],[.5,peak-.18,z],.06,frame);
+
   }
   if(lodge&&!shop&&level<3){
    for(const z of [lo-.045,hi+.045]){box(g,design.wallWidth+.12,.09,.07,.5,.22,z,'#e4d6b5');box(g,design.wallWidth+.12,.09,.07,.5,1.38,z,'#e4d6b5');}
@@ -117,8 +128,8 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
      for(let i=0;i<4;i++)box(extra,.12,.18,.13,.28+i*.18,y+.12,lo+.32,i%2?'#bca47a':'#87956f');
     }
    }
-   for(let i=0;i<8;i++){
-    const awning=box(g,.22,.065,.34,-.27+i*.22,1.48,1.3,i%2?finish.color:'#d8c59c');awning.rotation.x=.12;
+   if(!upgraded)for(let i=0;i<8;i++){
+    const awning=box(g,.22,.065,.34,-.27+i*.22,1.48,1.3,finish.color);awning.rotation.x=.12;
    }
    box(g,1.8,.2,.07,.5,1.43,1.46,frame);
    const sign=new THREE.Mesh(new THREE.PlaneGeometry(1.2,.18),level===3?outfitterMaterial:signMaterial);sign.position.set(.5,1.43,1.497);g.add(sign);
@@ -139,7 +150,10 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
   }
   function planter(part,x,y,z,w=.47){
    box(part,w,.13,.16,x,y,z,frame);box(part,w-.04,.04,.13,x,y+.08,z,'#59704a');
-   for(let i=0;i<4;i++){box(part,.075,.10,.1,x-w*.32+i*w*.21,y+.14,z,'#78945a');box(part,.055,.055,.07,x-w*.32+i*w*.21,y+.21,z,i%2?'#e5c68b':'#c59386');}
+   for(let i=0;i<4;i++){
+    const px=x-w*.32+i*w*.21,leaf=new THREE.Mesh(new THREE.IcosahedronGeometry(Math.min(.065,w*.24),0),material('#78945a'));leaf.position.set(px,y+.14,z);leaf.castShadow=true;part.add(leaf);
+    const bloom=new THREE.Mesh(new THREE.IcosahedronGeometry(.025,0),material(i%2?'#e5c68b':'#c59386'));bloom.position.set(px,y+.20,z+.015);bloom.castShadow=true;part.add(bloom);
+   }
   }
   if(upgraded&&!shop){
    const porch=feature('cabin-comfort-porch');
@@ -158,26 +172,28 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
    // Two side-facing dormers rise out of the roof, with real projecting cheeks.
    for(const z of [.02,.98]){
     const d=new THREE.Group();d.position.set(1.02,0,z);d.rotation.y=Math.PI/2;loft.add(d);
-    const y=2.02+(peak-2.8)*.35;
+    const y=1.96+(peak-2.64)*.35;
     box(d,.53,.48,.48,0,y,0,wall);
     box(d,.43,.37,.035,0,y,.247,frame);box(d,.33,.28,.04,0,y,.27,'#d9b77a');
     box(d,.035,.3,.045,0,y,.293,frame);box(d,.35,.035,.045,0,y,.293,frame);
-    pitched(d,0,y+.25,0,.66,.58,.28);
-    beam(d,[-.26,y+.24,.25],[0,y+.49,.25],.045,frame);beam(d,[0,y+.49,.25],[.26,y+.24,.25],.045,frame);
+    pitched(d,0,y+.25,0,.61,.56,.20);
+    const face=new THREE.BufferGeometry();face.setAttribute('position',new THREE.Float32BufferAttribute([-.265,y+.24,.245,.265,y+.24,.245,0,y+.44,.245,0,y+.44,.245,.265,y+.24,.245,-.265,y+.24,.245],3));face.computeVertexNormals();
+    const infill=new THREE.Mesh(face,material(wall));infill.castShadow=true;infill.receiveShadow=true;d.add(infill);
+    beam(d,[-.26,y+.24,.25],[0,y+.44,.25],.045,frame);beam(d,[0,y+.44,.25],[.26,y+.24,.25],.045,frame);
    }
    box(loft,design.wallWidth,.10,.07,.5,1.59,hi+.035,frame);
   }
   if(level===3&&!shop){
    const retreat=feature('cabin-premium-balcony');
    // Recessed dark glazing reads as a sheltered loft; outer beams remain prominent.
-   box(retreat,.95,.59,.045,.5,2.08,hi-.228,'#516960');
-   for(const x of [.04,.5,.96])box(retreat,.055,.64,.075,x,2.08,hi-.195,frame);
-   box(retreat,.98,.055,.075,.5,2.08,hi-.194,frame);
-   beam(retreat,[.03,2.39,hi+.035],[.5,peak-.15,hi+.035],.09,frame);beam(retreat,[.5,peak-.15,hi+.035],[.97,2.39,hi+.035],.09,frame);
-   box(retreat,1.22,.10,.22,.5,1.79,1.31,frame);
-   for(const x of [-.06,.22,.5,.78,1.06])box(retreat,.045,.31,.05,x,1.98,1.40,frame);
-   box(retreat,1.2,.065,.07,.5,2.15,1.40,frame);
-   planter(retreat,-.02,2.10,1.37,.22);planter(retreat,1.02,2.10,1.37,.22);
+   box(retreat,.68,.48,.045,.5,2.04,hi-.228,'#a3ac8e');
+   for(const x of [.16,.5,.84])box(retreat,.04,.50,.065,x,2.04,hi-.195,frame);
+   box(retreat,.71,.035,.065,.5,2.04,hi-.194,frame);
+   beam(retreat,[.5,2.30,hi+.01],[.5,peak-.07,hi+.01],.065,frame);
+   box(retreat,.94,.075,.24,.5,1.79,1.30,frame);
+   for(const x of [.07,.285,.5,.715,.93])box(retreat,.035,.27,.045,x,1.96,1.40,frame);
+   box(retreat,.92,.05,.06,.5,2.10,1.40,frame);
+   planter(retreat,.15,1.91,1.37,.18);planter(retreat,.85,1.91,1.37,.18);
    const stone=feature('cabin-premium-stone');
    for(const z of [lo-.02,hi+.02])for(let i=0;i<7;i++)box(stone,design.wallWidth/7-.018,.16,.07,lo+(i+.5)*design.wallWidth/7,.22,z,i%2?'#9a9c8b':'#afb09b');
    box(stone,.29,peak+.20,.29,lo+.23,(peak+.20)/2,lo+.25,'#9b9c8c');
@@ -190,16 +206,16 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
    for(const x of [.58,1.18])box(displays,.065,.35,.17,x,.32,1.40,frame);
    for(let i=0;i<3;i++){box(displays,.19,.16,.15,.65+i*.23,.64,1.40,['#87956f','#c29a77','#d8bf8e'][i]);box(displays,.20,.025,.16,.65+i*.23,.74,1.40,frame);}
    const canopy=feature('shop-timber-canopy');
-   const slab=box(canopy,1.90,.07,level>=2?.48:.36,.5,1.55,1.24,finish.color);slab.rotation.x=.14;
-   for(const x of [-.30,1.29])beam(canopy,[x,1.07,1.25],[x,1.49,1.43],.09,frame);
+   if(level<3){const slab=box(canopy,1.90,.055,level>=2?.48:.36,.5,1.55,1.24,finish.color);slab.rotation.x=.14;}
+   if(level<3)for(const x of [-.30,1.29])beam(canopy,[x,1.07,1.25],[x,1.49,1.43],.09,frame);
    if(level>=2){
     const stock=feature('shop-camping-stock');
     for(let i=0;i<3;i++){
      const roll=new THREE.Mesh(new THREE.CylinderGeometry(.09,.09,.23,8),material(['#b8886b','#899d78','#d5c499'][i]));roll.rotation.x=Math.PI/2;roll.position.set(.55+i*.24,1.15,hi-.24);roll.castShadow=true;stock.add(roll);
      box(stock,.20,.27,.13,.55+i*.24,.68,hi-.24,i%2?'#73907b':'#a88c68');box(stock,.025,.23,.015,.55+i*.24,.68,hi-.165,frame);
     }
-    const clerestory=feature('shop-raised-roof-windows');const y=peak+.04;
-    box(clerestory,.53,.38,1.52,.5,y,.5,frame);
+    const clerestory=feature('shop-raised-roof-windows');const y=peak-.12;
+    box(clerestory,.53,.46,1.52,.5,y,.5,frame);
     for(const x of [.225,.775])for(let i=0;i<4;i++)box(clerestory,.025,.25,.29,x,y,.0+i*.34,'#cfbc8b');
     const cap=box(clerestory,.72,.09,1.70,.5,y+.25,.5,finish.color);cap.rotation.z=.07;
     beam(stock,[1.22,1.30,.91],[1.45,1.30,.91],.045,frame);
@@ -208,10 +224,10 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
    if(level===3){
     const portico=feature('shop-outfitter-portico');
     for(const x of [-.32,1.32]){
-     box(portico,.23,.35,.23,x,.29,1.38,'#a6a693');box(portico,.12,1.2,.12,x,1.02,1.38,frame);
+     box(portico,.23,.35,.23,x,.29,1.38,'#a6a693');box(portico,.12,1.28,.12,x,1.06,1.38,frame);
      beam(portico,[x,1.26,1.38],[x+(x<.5?.30:-.30),1.57,1.38],.09,frame);
     }
-    box(portico,1.78,.12,.14,.5,1.66,1.31,frame);
+    box(portico,1.78,.08,.08,.5,1.72,1.44,frame);
     pitched(portico,.5,1.71,1.12,1.94,.68,.48);
     beam(portico,[.5,1.72,1.44],[.5,2.12,1.44],.09,frame);
     for(const x of [-.18,1.18])beam(portico,[x,1.74,1.44],[.5,2.12,1.44],.07,frame);
