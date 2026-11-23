@@ -59,7 +59,7 @@ export function validateWorld(value){
  for(const input of value.buildings){
   if(!input||typeof input.id!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.id)||ids.has(input.id)||!Object.hasOwn(BLUEPRINTS,input.blueprint)||input.definitionVersion!==1||!Object.hasOwn(DESIGNS,input.design)||!Array.isArray(input.position)||input.position.length!==2||!input.position.every(Number.isInteger)||![0,1,2,3].includes(input.rotation)||!input.gameplay||typeof input.gameplay!=='object'||Array.isArray(input.gameplay))throw new Error('Unsupported or invalid building. Original save retained.');
   const b=renovateCabin(buildingAt(input.blueprint,...input.position,input.rotation,input.appearance,input.id),{design:input.design,appearance:input.appearance||{}});b.gameplay=structuredClone(input.gameplay);b.paidGold=validatePaidGold(input.paidGold);
-  if(b.gameplay.businessLevel!==undefined&&![0,1].includes(b.gameplay.businessLevel))throw new Error('Invalid business upgrade.');
+  if(b.gameplay.businessLevel!==undefined&&![0,1,2,3].includes(b.gameplay.businessLevel))throw new Error('Invalid business upgrade.');
   const error=placementError(b,world);if(error)throw new Error(error);
   ids.add(b.id);world.buildings.push(b);
  }

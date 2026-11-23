@@ -8,6 +8,6 @@ export function createSkillsView(container){
   rows.set(id,card);container.append(card);
  }
  return {update(state){for(const [id,card]of rows){const status=skillStatus(state.xp[id]);card.querySelector('.skill-level').textContent=`Level ${status.level}`;const bar=card.querySelector('progress');bar.value=status.progress;bar.setAttribute('aria-valuetext',status.next===null?'Level cap reached':`${status.remaining} XP to level ${status.level+1}`);card.querySelector('.skill-xp').textContent=`${status.xp.toLocaleString()} XP · ${status.next===null?'Level cap reached':`${status.remaining.toLocaleString()} to level ${status.level+1}`}`;card.querySelector('.skill-source').textContent=id==='cultivation'?`+${XP_REWARDS.treeExpansion} XP per new tree-count record`:id==='construction'?`New building +${XP_REWARDS.buildingCompletion} · upgrade +${XP_REWARDS.buildingUpgrade} XP`:id==='hospitality'?`+${XP_REWARDS.guestHosted} XP per guest · +${XP_REWARDS.customerServed} per customer / payout`:'Habitat activities coming later';}
-  return SKILL_UNLOCKS.map(u=>`${unlocked(state,u.id)?'Unlocked':'Construction level '+u.level}: ${u.name} blueprint finish`).join(' · ');
+  return SKILL_UNLOCKS.map(u=>`${unlocked(state,u.id)?'Unlocked':SKILL_DEFINITIONS[u.skill].name+' level '+u.level}: ${u.name}${u.kind==='exterior'?' blueprint finish':''}`).join(' · ');
  }};
 }
