@@ -4,7 +4,8 @@ import {LIMIT,key,normalize} from './town.js';
 import {levelSite,terrainLevel} from './terrain.js';
 export const CABIN=Object.freeze({id:'timber-guest-cabin',version:1,design:'gable',width:2,depth:2,entrance:[0,2]});
 export const SHOP=Object.freeze({...CABIN,id:'supply-shop'});
-export const BLUEPRINTS=Object.freeze({[CABIN.id]:Object.freeze({...CABIN,name:'Timber Guest Cabin',cost:ECONOMY.cabinCost}),[SHOP.id]:Object.freeze({...SHOP,name:'Supply Shop',cost:ECONOMY.shopCost})});
+export const CAFE=Object.freeze({...CABIN,id:'woodland-cafe'});
+export const BLUEPRINTS=Object.freeze({[CAFE.id]:Object.freeze({...CAFE,name:'Woodland Café',cost:ECONOMY.cafeCost}),[CABIN.id]:Object.freeze({...CABIN,name:'Timber Guest Cabin',cost:ECONOMY.cabinCost}),[SHOP.id]:Object.freeze({...SHOP,name:'Supply Shop',cost:ECONOMY.shopCost})});
 // Stable IDs: gable is the original Frontier design, so existing 2.0 saves remain valid.
 export const DESIGNS=Object.freeze({
  gable:Object.freeze({name:'Frontier Cabin',version:1,peak:2.22,wallWidth:1.82,eave:.49,renovationCost:ECONOMY.renovationCost,constructionLevel:0}),

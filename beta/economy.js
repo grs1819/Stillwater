@@ -1,5 +1,5 @@
 // All first-pass balancing lives here. No wall-clock timestamps or offline rewards.
-export const ECONOMY=Object.freeze({startingGold:1000,cabinCost:200,shopCost:250,renovationCost:75,refundRate:.5,intervalMs:5_000,baselineIncome:1.5,maxGold:1_000_000_000});
+export const ECONOMY=Object.freeze({startingGold:1000,cabinCost:200,shopCost:250,cafeCost:200,renovationCost:75,refundRate:.5,intervalMs:5_000,baselineIncome:1.5,maxGold:1_000_000_000});
 export const initialEconomy=()=>({version:2,gold:ECONOMY.startingGold,activeMs:0,goldFraction:0});
 export function normalizeEconomy(value){
  if(value===undefined)return initialEconomy();

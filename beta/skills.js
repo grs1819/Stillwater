@@ -10,6 +10,7 @@ export const XP_REWARDS=Object.freeze({treeExpansion:8,buildingCompletion:60,bui
 // Reserved hook, deliberately inactive until a genuine habitat system exists.
 export const FUTURE_SKILL_EVENTS=Object.freeze({habitatRestored:{skill:'conservation',enabled:false,xp:0}});
 export const SKILL_UNLOCKS=Object.freeze([{id:'cedar-exterior',skill:'construction',level:3,kind:'exterior',value:'cedar',name:'Warm cedar'},
+ {id:'woodland-cafe',skill:'hospitality',level:2,kind:'building',value:'woodland-cafe',name:'Woodland Café'},
  {id:'business-tier-2',skill:'hospitality',level:3,kind:'business',value:2,name:'Capacity & Expanded Stock'},
  {id:'business-tier-3',skill:'hospitality',level:5,kind:'business',value:3,name:'Premium Retreat & Woodland Outfitters'}]);
 const ids=Object.keys(SKILL_DEFINITIONS);
