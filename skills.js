@@ -9,7 +9,9 @@ export const SKILL_DEFINITIONS=Object.freeze({
 export const XP_REWARDS=Object.freeze({treeExpansion:8,buildingCompletion:60,buildingUpgrade:80,guestHosted:1,customerServed:1});
 // Reserved hook, deliberately inactive until a genuine habitat system exists.
 export const FUTURE_SKILL_EVENTS=Object.freeze({habitatRestored:{skill:'conservation',enabled:false,xp:0}});
-export const SKILL_UNLOCKS=Object.freeze([{id:'cedar-exterior',skill:'construction',level:3,kind:'exterior',value:'cedar',name:'Warm cedar'}]);
+export const SKILL_UNLOCKS=Object.freeze([{id:'cedar-exterior',skill:'construction',level:3,kind:'exterior',value:'cedar',name:'Warm cedar'},
+ {id:'business-tier-2',skill:'hospitality',level:3,kind:'business',value:2,name:'Capacity & Expanded Stock'},
+ {id:'business-tier-3',skill:'hospitality',level:5,kind:'business',value:3,name:'Premium Retreat & Woodland Outfitters'}]);
 const ids=Object.keys(SKILL_DEFINITIONS);
 export function xpForLevel(level){
  if(!Number.isInteger(level)||level<1||level>PROGRESSION.maxLevel)throw new Error('Invalid skill level.');
@@ -20,7 +22,7 @@ export function skillStatus(xp){
  const level=skillLevel(xp),start=xpForLevel(level),next=level===PROGRESSION.maxLevel?null:xpForLevel(level+1);
  return {level,xp,next,remaining:next===null?0:next-xp,progress:next===null?1:(xp-start)/(next-start)};
 }
-export function developmentCounts(world){return {trees:Object.values(world.blocks||{}).filter(b=>b.type==='tree').length,buildings:(world.buildings||[]).length,upgrades:(world.buildings||[]).filter(b=>b.gameplay?.businessLevel===1).length};}
+export function developmentCounts(world){return {trees:Object.values(world.blocks||{}).filter(b=>b.type==='tree').length,buildings:(world.buildings||[]).length,upgrades:(world.buildings||[]).reduce((n,b)=>n+(b.gameplay?.businessLevel||0),0)};}
 export function initialSkills(world={}){return {version:1,xp:Object.fromEntries(ids.map(id=>[id,0])),records:developmentCounts(world)};}
 export function normalizeSkills(value,world){
  if(value===undefined)return initialSkills(world);

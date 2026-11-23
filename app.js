@@ -1,6 +1,6 @@
 import {developmentXP,hospitalityXP,levelGains,unlocked} from './skills.js';
 import {createSkillsView} from './skills-view.js';
-import {businessSummary,upgradeQuote,upgradeBusiness} from './businesses.js';
+import {businessSummary,upgradeQuote,upgradeBusiness,upgradeError,businessTier} from './businesses.js';
 import {ECONOMY,transactGold,removalRefund,renovationCost,advanceIncome,activeElapsed} from './economy.js';
 import {renovateCabin,emptyWorld,validateWorld,buildingAt,BLUEPRINTS,CABIN,SHOP,placementError,cabinOccupancy,navigationBlocks,footprint} from './blueprints.js';
 import {createCabinView} from './cabin-view.js';
@@ -151,12 +151,12 @@ function updateEconomyUI(){
  if(!original)setBuildingDetail($('#appearance-panel').hidden?null:'appearance');
  if(original){
   const row=report.rows.find(r=>r.id===original.id),quote=upgradeQuote(original);
-  $('#business-summary').textContent=`${row.shop?'Customers':'Guests'} ${row.shop?row.customers:row.guests}/${row.capacity} · +${row.income*perMinute} Gold/min`;
+  $('#business-summary').textContent=`Tier ${row.level}/3 · ${row.shop?'Customers':'Guests'} ${row.shop?row.customers:row.guests}/${row.capacity} · +${row.income*perMinute} Gold/min`;
   $('#business-description').textContent=row.shop?`Serving ${row.lodgings} nearby lodging${row.lodgings===1?'':'s'}. Each guest shops at one store.`:`${row.guests} guests staying in ${row.capacity} beds. Settlement demand: ${report.demand}.`;
   $('#business-hint').textContent=row.hint;
-  $('#business-upgrade').textContent=row.level?'Fully upgraded':`${quote.name} · ${quote.cost} Gold`;
-  $('#business-upgrade').disabled=!!row.level||!!renovationDraft||!!fundsError(quote.cost);
-  $('#business-upgrade-note').textContent=row.level?'Functional upgrade kept through renovations.':renovationDraft?'Confirm or cancel the renovation first.':fundsError(quote.cost)||`Capacity → ${quote.capacity}. Separate from cosmetic renovations; demand still applies.`;
+  $('#business-upgrade').textContent=!quote?'Fully upgraded':`${quote.name} · ${quote.cost} Gold`;
+  $('#business-upgrade').disabled=!quote||!!renovationDraft||!!upgradeError(original,skillProgress)||!!fundsError(quote.cost);
+  $('#business-upgrade-note').textContent=!quote?'Fully upgraded. Appearance renovations keep every functional benefit.':renovationDraft?'Confirm or cancel the renovation first.':`${upgradeError(original,skillProgress)||fundsError(quote.cost)||'Ready to upgrade.'} ${quote.visual} Capacity ${row.capacity} → ${quote.capacity} · ${businessTier(original).rate*perMinute} → ${quote.rate*perMinute} Gold/min per ${row.shop?'customer':'guest'}. Demand still applies.`;
  }
  if(pendingCabin)showCabinGhost(pendingCabin);
 }
@@ -1228,8 +1228,8 @@ for(const id of ['cabin-design','cabin-exterior','cabin-roof'])$('#'+id).onchang
 };
 $('#renovation-cancel').onclick=()=>cancelRenovation();
 $('#business-upgrade').onclick=()=>{
- const original=cabins.find(b=>b.id===selectedCabin);if(!original||renovationDraft||original.gameplay.businessLevel)return;
- const next=upgradeBusiness(original),quote=upgradeQuote(original);
+ const original=cabins.find(b=>b.id===selectedCabin);if(!original||renovationDraft||upgradeError(original,skillProgress))return;
+ const next=upgradeBusiness(original,skillProgress),quote=upgradeQuote(original);
  if(commit(blocks,water,terrain,cabins.map(b=>b.id===next.id?next:b),-quote.cost)){sound.effect('wood');syncCabinPanel();}
 };
 $('#renovation-confirm').onclick=()=>{

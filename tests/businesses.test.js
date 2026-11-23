@@ -32,7 +32,7 @@ test('upgrades preserve IDs and purchase refund; renovations preserve functional
  const upgraded=upgradeBusiness(b);assert.equal(upgradeQuote(b).cost,175);assert.equal(upgraded.id,b.id);assert.equal(removalRefund(upgraded),125);assert.deepEqual(upgraded.gameplay.inventory,b.gameplay.inventory);assert.equal(b.gameplay.businessLevel,undefined);
  assert.throws(()=>upgradeBusiness(upgraded));
  w.buildings=[renovateCabin(upgraded,{design:'woodland'})];assert.equal(businessSummary(w).rows[0].capacity,8);assert.deepEqual(validateWorld(JSON.parse(JSON.stringify(w))),w);
- for(const level of [-1,2,'1',null])assert.throws(()=>validateWorld({...w,buildings:[{...upgraded,gameplay:{businessLevel:level}}]}));
+ for(const level of [-1,4,'1',null])assert.throws(()=>validateWorld({...w,buildings:[{...upgraded,gameplay:{businessLevel:level}}]}));
 });
 test('shops support every orientation, collision rules and old saves',()=>{
  for(let rotation=0;rotation<4;rotation++){

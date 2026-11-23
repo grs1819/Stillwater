@@ -16,7 +16,7 @@ Definitions, rewards, thresholds and unlocks live in `skills.js`; the small DOM 
 | --- | --- | ---: |
 | Cultivation | Each tree above the village's previous largest tree count | 8 |
 | Construction | Each blueprint building above its previous largest building count | 60 |
-| Construction | Each functionally upgraded blueprint above its previous largest upgraded count | 80 |
+| Construction | Each purchased upgrade tier above the village’s previous total-tier record | 80 |
 | Hospitality | Each staying guest per completed active five-second payout | 1 |
 | Hospitality | Each served shop customer per completed active five-second payout | 1 |
 | Conservation | Reserved for genuine future habitat activities | 0 currently |
@@ -33,9 +33,11 @@ Level 2 requires 60 XP, Level 3 requires 133 XP. XP remains saved above the Leve
 
 The data-driven `SKILL_UNLOCKS` registry demonstrates **Construction 3 → Warm Cedar blueprint exterior**. It reuses existing cedar color/material styling. Honey timber, pale birch, all existing designs and roof choices remain available as before. The freeform cedar milestone is untouched. The new choice is gated in the UI and checked again at placement/renovation; existing building identities and gameplay fields are preserved. Future unlock entries can describe designs, materials, buildings, equipment or environment features.
 
+Hospitality level 3 now unlocks business tier 2 (Capacity / Expanded Stock), and level 5 unlocks tier 3 (Premium Retreat / Woodland Outfitters). Both appear in the existing Skills panel and level-up feedback. Higher Gold rates do not multiply Hospitality XP; actual guests/customers still award one XP per active payout.
+
 ## Award and save safety
 
-Development XP rewards expansion beyond persistent count records, rather than repeatable purchase transactions or newly generated building IDs. Undo and removal retain XP **and** these records. Rebuilding to a former count, replacing tree species, re-upgrading replacement buildings, or repeated undo/rebuild cycles cannot award the same development progress again. A first completed expansion still counts even if later undone; this intentionally permits rearranging a village without losing skill levels. Further XP requires exceeding that record.
+Development XP rewards expansion beyond persistent count records (upgrade progress is the sum of all business levels, not just the number of upgraded buildings), rather than repeatable purchase transactions or newly generated building IDs. Undo and removal retain XP **and** these records. Rebuilding to a former count, replacing tree species, re-upgrading replacement buildings, or repeated undo/rebuild cycles cannot award the same development progress again. A first completed expansion still counts even if later undone; this intentionally permits rearranging a village without losing skill levels. Further XP requires exceeding that record.
 
 Gold, world changes, XP and activity records are saved in the same transaction before in-memory state changes. Failed/invalid/unaffordable actions award nothing. Hospitality uses the same completed active intervals as Gold, with no independent clock or queue, so reloading does not replay XP. Baseline-only payouts give no Hospitality XP. Existing stale-tab/save protections apply to the combined transaction.
 
