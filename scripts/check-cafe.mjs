@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
+const browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox','--enable-unsafe-swiftshader']});
+try{for(const mobile of [false,true]){
+ const page=await browser.newPage({viewport:mobile?{width:390,height:844}:{width:1280,height:850},hasTouch:mobile,isMobile:mobile}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.route('**/app.js*',async route=>{const response=await route.fetch();await route.fulfill({response,body:await response.text()+`
+clearInterval(incomeTimer);renderer.setAnimationLoop(null);controls.enableDamping=false;
+window.cafeUI={data:currentVillageData,save,undo,report:currentBusiness,render:()=>renderer.render(scene,camera),place:()=>edit({position:[0,0,0]}),select:()=>edit({position:[0,0,0],buildingId:cabins[0].id}),grant:()=>{skillProgress={...skillProgress,xp:{...skillProgress.xp,hospitality:60}};updateUI();},point:()=>{camera.updateMatrixWorld(true);const p=new THREE.Vector3(0,0,0).project(camera);return {x:(p.x+1)*innerWidth/2,y:(1-p.y)*innerHeight/2};}};`});});
+ await page.goto(process.env.STILLWATER_URL||'http://localhost:5219');await page.waitForFunction(()=>window.cafeUI);
+ assert.equal(await page.locator('#building-mode option[value=cafe]').isDisabled(),true);
+ await page.evaluate(()=>{document.querySelector('#building-mode').value='cafe';cafeUI.place();});assert.equal(await page.evaluate(()=>cafeUI.data().buildings.length),0);assert.equal(await page.evaluate(()=>cafeUI.data().economy.gold),1000);
+ await page.evaluate(()=>cafeUI.grant());await page.locator('button[data-panel=build]').click();await page.locator('#building-mode').selectOption('cafe');assert.match(await page.locator('#cabin-price').textContent(),/200 Gold/);await page.locator('button[data-panel=build]').click();
+ const p=await page.evaluate(()=>cafeUI.point());if(mobile){await page.touchscreen.tap(p.x,p.y);await page.locator('#cabin-place').tap();}else await page.mouse.click(p.x,p.y);
+ let b=await page.evaluate(()=>cafeUI.data().buildings[0]);assert.equal(b.blueprint,'woodland-cafe');assert.equal(await page.evaluate(()=>cafeUI.data().economy.gold),800);assert.equal(await page.evaluate(()=>cafeUI.report().guests),0);
+ await page.evaluate(()=>cafeUI.select());assert.equal(await page.locator('#building-mode').inputValue(),'cafe');await page.locator('#business-toggle').click();assert.match(await page.locator('#business-upgrade').textContent(),/Cozy Tables.*125/);await page.locator('#business-upgrade').click();assert.equal(await page.evaluate(()=>cafeUI.data().economy.gold),675);
+ await page.evaluate(()=>cafeUI.undo());assert.equal(await page.evaluate(()=>cafeUI.data().economy.gold),800);await page.evaluate(()=>cafeUI.select());if(await page.locator('#business-panel').isHidden())await page.locator('#business-toggle').click();await page.locator('#business-upgrade').click();assert.equal(await page.evaluate(()=>cafeUI.data().skills.xp.construction),140);
+ await page.locator('#appearance-toggle').click();await page.locator('#cabin-design').selectOption('woodland');await page.locator('#renovation-confirm').click();const after=await page.evaluate(()=>cafeUI.data().buildings[0]);assert.equal(after.id,b.id);assert.equal(after.gameplay.businessLevel,1);assert.equal(after.design,'woodland');
+ await page.evaluate(()=>cafeUI.save());const saved=await page.evaluate(()=>cafeUI.data());await page.reload();await page.waitForFunction(()=>window.cafeUI);assert.deepEqual(await page.evaluate(()=>cafeUI.data()),saved);await page.evaluate(()=>cafeUI.select());assert.equal(await page.locator('#building-mode').inputValue(),'cafe');assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ assert.deepEqual(errors,[]);await page.close();console.log(`PASS ${mobile?'mobile':'desktop'} café: unlock guard, real placement, costs, upgrades, undo XP, renovation identity, reload and compact controls`);
+}}finally{await browser.close();}

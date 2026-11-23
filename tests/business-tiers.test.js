@@ -40,6 +40,6 @@ test('tier earnings remain quarter-Gold exact, demand limited, and shared betwee
  }
 });
 test('Hospitality unlocks are attainable through guests, but spending and rate upgrades do not multiply XP',()=>{
- const s=skills(1),report={guests:2,rows:[{shop:true,customers:2}]};const next=hospitalityXP(s,report,34);assert.ok(next.xp.hospitality>=xpForLevel(3));assert.equal(levelGains(s,next)[0].unlocks[0].id,'business-tier-2');
+ const s=skills(1),report={guests:2,rows:[{shop:true,customers:2}]};const next=hospitalityXP(s,report,34);assert.ok(next.xp.hospitality>=xpForLevel(3));assert.ok(levelGains(s,next)[0].unlocks.some(u=>u.id==='business-tier-2'));
  assert.equal(upgradeError(upgradeBusiness(buildingAt(SHOP.id,0,0)),next),null);
 });

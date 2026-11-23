@@ -18,7 +18,7 @@ Definitions, rewards, thresholds and unlocks live in `skills.js`; the small DOM 
 | Construction | Each blueprint building above its previous largest building count | 60 |
 | Construction | Each purchased upgrade tier above the village’s previous total-tier record | 80 |
 | Hospitality | Each staying guest per completed active five-second payout | 1 |
-| Hospitality | Each served shop customer per completed active five-second payout | 1 |
+| Hospitality | Each served shop or café customer per completed active five-second payout | 1 |
 | Conservation | Reserved for genuine future habitat activities | 0 currently |
 
 Trees must be player-planted world objects; background scenery is excluded. No XP comes from Gold expenditure itself, appearance changes, architectural renovations, baseline income, paths, terrain, freeform roles or arbitrary water placement. Only the existing blueprint construction and functional upgrades contribute Construction XP. Conservation's `habitatRestored` event definition is reserved and disabled; no current action emits it.
@@ -33,7 +33,7 @@ Level 2 requires 60 XP, Level 3 requires 133 XP. XP remains saved above the Leve
 
 The data-driven `SKILL_UNLOCKS` registry demonstrates **Construction 3 → Warm Cedar blueprint exterior**. It reuses existing cedar color/material styling. Honey timber, pale birch, all existing designs and roof choices remain available as before. The freeform cedar milestone is untouched. The new choice is gated in the UI and checked again at placement/renovation; existing building identities and gameplay fields are preserved. Future unlock entries can describe designs, materials, buildings, equipment or environment features.
 
-Hospitality level 3 now unlocks business tier 2 (Capacity / Expanded Stock), and level 5 unlocks tier 3 (Premium Retreat / Woodland Outfitters). Both appear in the existing Skills panel and level-up feedback. Higher Gold rates do not multiply Hospitality XP; actual guests/customers still award one XP per active payout.
+Hospitality level 2 unlocks the Woodland Café; level 3 unlocks business tier 2 (Capacity / Expanded Stock), and level 5 unlocks tier 3 (Premium Retreat / Woodland Outfitters). Both appear in the existing Skills panel and level-up feedback. Higher Gold rates do not multiply Hospitality XP; actual guests/customers still award one XP per active payout.
 
 ## Award and save safety
 

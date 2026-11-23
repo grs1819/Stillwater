@@ -2,7 +2,7 @@ import {developmentXP,hospitalityXP,levelGains,unlocked} from './skills.js';
 import {createSkillsView} from './skills-view.js';
 import {businessSummary,upgradeQuote,upgradeBusiness,upgradeError,businessTier} from './businesses.js';
 import {ECONOMY,transactGold,removalRefund,renovationCost,advanceIncome,activeElapsed} from './economy.js';
-import {renovateCabin,emptyWorld,validateWorld,buildingAt,BLUEPRINTS,CABIN,SHOP,placementError,cabinOccupancy,navigationBlocks,footprint} from './blueprints.js';
+import {renovateCabin,emptyWorld,validateWorld,buildingAt,BLUEPRINTS,CABIN,SHOP,CAFE,placementError,cabinOccupancy,navigationBlocks,footprint} from './blueprints.js';
 import {createCabinView} from './cabin-view.js';
 import {createAccounts} from './accounts.js';
 import {createCloudSync,supabaseRemote} from './cloud-sync.js';
@@ -133,7 +133,7 @@ function currentBusiness(){
  if(!businessCache||businessCache.blocks!==blocks||businessCache.water!==water||businessCache.cabins!==cabins)businessCache={blocks,water,cabins,result:businessSummary(currentVillageData())};
  return businessCache.result;
 }
-function placementBlueprint(){return $('#building-mode').value==='shop'?SHOP.id:CABIN.id;}
+function placementBlueprint(){return {shop:SHOP.id,cafe:CAFE.id}[$('#building-mode').value]||CABIN.id;}
 function selectedBuildingAt(x,z,id){return renovateCabin(buildingAt(placementBlueprint(),x,z,cabinRotation,undefined,id),cabinChoices());}
 function updateEconomyUI(){
  const report=currentBusiness(),{appeal,income}=report,perMinute=60000/ECONOMY.intervalMs;
@@ -152,7 +152,7 @@ function updateEconomyUI(){
  if(original){
   const row=report.rows.find(r=>r.id===original.id),quote=upgradeQuote(original);
   $('#business-summary').textContent=`Tier ${row.level}/3 · ${row.shop?'Customers':'Guests'} ${row.shop?row.customers:row.guests}/${row.capacity} · +${row.income*perMinute} Gold/min`;
-  $('#business-description').textContent=row.shop?`Serving ${row.lodgings} nearby lodging${row.lodgings===1?'':'s'}. Each guest shops at one store.`:`${row.guests} guests staying in ${row.capacity} beds. Settlement demand: ${report.demand}.`;
+  $('#business-description').textContent=row.shop?`Serving ${row.lodgings} nearby lodging${row.lodgings===1?'':'s'}. Each guest can visit one shop and one café.`:`${row.guests} guests staying in ${row.capacity} beds. Settlement demand: ${report.demand}.`;
   $('#business-hint').textContent=row.hint;
   $('#business-upgrade').textContent=!quote?'Fully upgraded':`${quote.name} · ${quote.cost} Gold`;
   $('#business-upgrade').disabled=!quote||!!renovationDraft||!!upgradeError(original,skillProgress)||!!fundsError(quote.cost);
@@ -161,11 +161,12 @@ function updateEconomyUI(){
  if(pendingCabin)showCabinGhost(pendingCabin);
 }
 function updateSkillsUI(){
+ const cafeOption=$('#building-mode option[value=cafe]'),cafeAvailable=unlocked(skillProgress,'woodland-cafe');cafeOption.disabled=!cafeAvailable&&!cabins.some(b=>b.id===selectedCabin&&b.blueprint===CAFE.id);cafeOption.textContent=cafeAvailable?'Woodland Café':'Woodland Café · Hospitality 2';
  if(lastSkillsView!==skillProgress){$('#skill-unlocks').textContent=skillView.update(skillProgress);lastSkillsView=skillProgress;}
  const option=$('#cabin-exterior option[value="cedar"]'),available=unlocked(skillProgress,'cedar-exterior');
  option.disabled=!available&&cabins.find(b=>b.id===selectedCabin)?.appearance.exterior!=='cedar';option.textContent=available?'Warm cedar':'Warm cedar · Construction 3';
 }
-function finishError(building,original=null){return building.appearance.exterior==='cedar'&&!unlocked(skillProgress,'cedar-exterior')&&original?.appearance.exterior!=='cedar'?'Warm cedar unlocks at Construction level 3.':null;}
+function finishError(building,original=null){if(!original&&building.blueprint===CAFE.id&&!unlocked(skillProgress,'woodland-cafe'))return 'Woodland Café unlocks at Hospitality level 2.';return building.appearance.exterior==='cedar'&&!unlocked(skillProgress,'cedar-exterior')&&original?.appearance.exterior!=='cedar'?'Warm cedar unlocks at Construction level 3.':null;}
 function presentLevelGains(before,after){
  const gains=levelGains(before,after);if(!gains.length)return;
  const message=gains.map(g=>`${g.name} · Level ${g.level}${g.unlocks.length?' — '+g.unlocks.map(u=>u.name).join(', ')+' unlocked':''}`).join(' · ');
@@ -1177,7 +1178,7 @@ function syncCabinPanel(){
  dock.classList.toggle('cabin-context',!!b);
  cabinSelection.visible=!!b;cabinSelection.scale.set(1,1,1);
  if(b){const cells=footprint(b);cabinSelection.position.set(cells.reduce((n,c)=>n+c[0],0)/4,terrainHeight(terrain,...b.position)+.12,cells.reduce((n,c)=>n+c[1],0)/4);}
- if(b){const shown=renovationDraft||b;$('#building-mode').value=b.blueprint===SHOP.id?'shop':'cabin';$('#cabin-design').value=shown.design;$('#cabin-exterior').value=shown.appearance.exterior;$('#cabin-roof').value=shown.appearance.roof;}
+ if(b){const shown=renovationDraft||b;$('#building-mode').value=b.blueprint===CAFE.id?'cafe':b.blueprint===SHOP.id?'shop':'cabin';$('#cabin-design').value=shown.design;$('#cabin-exterior').value=shown.appearance.exterior;$('#cabin-roof').value=shown.appearance.roof;}
  syncDesignCards();
  const active=$('#building-mode').value!=='freeform';
  $('#cabin-options').hidden=!active;$('#freeform-options').hidden=active;
