@@ -11,7 +11,7 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
  const outfitterCanvas=signCanvas.cloneNode();const outfitterInk=outfitterCanvas.getContext('2d');outfitterInk.fillStyle='#47604b';outfitterInk.fillRect(0,0,256,64);outfitterInk.fillStyle='#f0dfb7';outfitterInk.font='bold 29px Georgia';outfitterInk.textAlign='center';outfitterInk.textBaseline='middle';outfitterInk.fillText('OUTFITTERS',128,34);
  const outfitterTexture=new THREE.CanvasTexture(outfitterCanvas);outfitterTexture.colorSpace=THREE.SRGBColorSpace;
  const outfitterMaterial=new THREE.MeshStandardMaterial({map:outfitterTexture,roughness:1});
- const cafeCanvas=signCanvas.cloneNode(),cafeInk=cafeCanvas.getContext('2d');cafeInk.fillStyle='#52674a';cafeInk.fillRect(0,0,256,64);cafeInk.fillStyle='#fff0cb';cafeInk.font='bold 30px Georgia';cafeInk.textAlign='center';cafeInk.textBaseline='middle';cafeInk.fillText('WOODLAND CAFÉ',128,34);
+ const cafeCanvas=signCanvas.cloneNode(),cafeInk=cafeCanvas.getContext('2d');cafeInk.fillStyle='#303c39';cafeInk.fillRect(0,0,256,64);cafeInk.fillStyle='#fff0cb';cafeInk.font='bold 30px Georgia';cafeInk.textAlign='center';cafeInk.textBaseline='middle';cafeInk.fillText('WOODLAND CAFÉ',128,34);
  const cafeTexture=new THREE.CanvasTexture(cafeCanvas);cafeTexture.colorSpace=THREE.SRGBColorSpace;const cafeSign=new THREE.MeshStandardMaterial({map:cafeTexture,roughness:1});
  const glassGlint=new THREE.MeshBasicMaterial({color:'#eff2df',transparent:true,opacity:.2,depthWrite:false,side:THREE.DoubleSide});
  const shopGlass=new THREE.MeshStandardMaterial({color:'#b5d9d2',transparent:true,opacity:.16,roughness:.2,metalness:.08,depthWrite:false,side:THREE.DoubleSide});
@@ -24,7 +24,7 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
  function cottagePeak(id){return id==='woodland'?2.48:id==='craftsman'?2.28:2.32;}
  function build(b){
   const cafe=b.blueprint===CAFE.id,shop=cafe||b.blueprint===SHOP.id,level=b.gameplay.businessLevel||0,upgraded=level>0;
-  const g=new THREE.Group(),{wall,frame}=EXTERIORS[b.appearance.exterior],finish=FINISHES[b.appearance.roof],design=DESIGNS[b.design],peak=(cottagePeak(b.design))+(level>=2?(shop?.12:.32):0)+(level===3?.12:0),cottage=b.design==='woodland',lodge=b.design==='craftsman',half=design.wallWidth/2,lo=.5-half,hi=.5+half,frontWall=hi-(upgraded&&!shop?.28:0),wallDepth=design.wallWidth-(upgraded&&!shop?.28:0);
+  const g=new THREE.Group(),{wall}=EXTERIORS[b.appearance.exterior],frame=cafe?'#343e3b':EXTERIORS[b.appearance.exterior].frame,finish=FINISHES[b.appearance.roof],design=DESIGNS[b.design],peak=(cottagePeak(b.design))-(cafe?.18:0)+(level>=2?(shop?.12:.32):0)+(level===3?.12:0),cottage=b.design==='woodland',lodge=b.design==='craftsman',half=design.wallWidth/2,lo=.5-half,hi=.5+half,frontWall=hi-(upgraded&&!shop?.28:0),wallDepth=design.wallWidth-(upgraded&&!shop?.28:0);
   g.userData={blueprint:b.blueprint,design:b.design,appearance:{...b.appearance},businessLevel:level};
   box(g,1.94,.16,1.94,.5,.08,.5,'#aaa58d');
   if(shop){
@@ -37,15 +37,15 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
    box(g,design.wallWidth,.25,.1,.5,.3,hi-.11,wall);
    box(g,design.wallWidth,.1,design.wallWidth,.5,1.43,.5,'#d5c49a');
   }else box(g,design.wallWidth,1.35,wallDepth,.5,.82,.5-(upgraded?.14:0),wall);
-  for(const x of [lo+.03,hi-.03])for(const z of [lo+.03,hi-.03])box(g,.12,1.5,.12,x,.88,z,frame);
+  for(const x of [lo+.03,hi-.03])for(const z of [lo+.03,hi-.03])box(g,cafe?.075:.12,1.5,cafe?.075:.12,x,.88,z,frame);
   for(const z of [lo-.02,hi+.02]){
    box(g,design.wallWidth+.1,.12,.12,.5,1.5,z,frame);
-   if(!(level===3&&z>0))beam(g,[.5,1.5,z],[.5,peak-.07,z],.065,frame);
-   for(const x of [lo+.03,hi-.03])beam(g,[x,1.23,z],[x+(x<.5?.20:-.20),1.48,z],.055,frame);
+   if(!cafe&&!(level===3&&z>0))beam(g,[.5,1.5,z],[.5,peak-.07,z],.065,frame);
+   if(!cafe)for(const x of [lo+.03,hi-.03])beam(g,[x,1.23,z],[x+(x<.5?.20:-.20),1.48,z],.055,frame);
   }
   // Subtle board joints instead of heavy dark ladder-like battens.
   const boardTint='#'+new THREE.Color(wall).multiplyScalar(.90).getHexString();
-  for(let i=0;i<8;i++)for(const x of (shop?[lo-.005]:[lo-.005,hi+.005]))box(g,.012,.009,wallDepth,x,.28+i*.15,.5-(upgraded&&!shop?.14:0),boardTint);
+  if(!cafe)for(let i=0;i<8;i++)for(const x of (shop?[lo-.005]:[lo-.005,hi+.005]))box(g,.012,.009,wallDepth,x,.28+i*.15,.5-(upgraded&&!shop?.14:0),boardTint);
   if(!shop)for(let i=0;i<8;i++)box(g,design.wallWidth-.12,.009,.012,.5,.28+i*.15,frontWall+.008,boardTint);
   // Entrance faces local +Z. The reserved approach tile lies directly ahead.
   if(!shop){box(g,.49,.94,.07,0,.63,frontWall+.02,frame);box(g,.35,.8,.08,0,.63,frontWall+.06,'#a99067');
@@ -132,7 +132,7 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
     }
    }
    }
-   if(!upgraded)for(let i=0;i<8;i++){
+   if(!upgraded&&!cafe)for(let i=0;i<8;i++){
     const awning=box(g,.22,.065,.34,-.27+i*.22,1.48,1.3,finish.color);awning.rotation.x=.12;
    }
    box(g,1.8,.2,.07,.5,1.43,1.46,frame);
@@ -210,8 +210,8 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
    for(const x of [.58,1.18])box(displays,.065,.35,.17,x,.32,1.40,frame);
    if(!cafe)for(let i=0;i<3;i++){box(displays,.19,.16,.15,.65+i*.23,.64,1.40,['#87956f','#c29a77','#d8bf8e'][i]);box(displays,.20,.025,.16,.65+i*.23,.74,1.40,frame);}
    const canopy=feature('shop-timber-canopy');
-   if(level<3){const slab=box(canopy,1.90,.055,level>=2?.48:.36,.5,1.55,1.24,finish.color);slab.rotation.x=.14;}
-   if(level<3)for(const x of [-.30,1.29])beam(canopy,[x,1.07,1.25],[x,1.49,1.43],.09,frame);
+   if(level<3&&!cafe){const slab=box(canopy,1.90,.055,level>=2?.48:.36,.5,1.55,1.24,finish.color);slab.rotation.x=.14;}
+   if(level<3&&!cafe)for(const x of [-.30,1.29])beam(canopy,[x,1.07,1.25],[x,1.49,1.43],.09,frame);
    if(level>=2){
     const stock=feature('shop-camping-stock');
     if(!cafe)for(let i=0;i<3;i++){
@@ -228,16 +228,38 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
    if(level===3){
     const portico=feature('shop-outfitter-portico');
     for(const x of [-.32,1.32]){
-     box(portico,.23,.35,.23,x,.29,1.38,'#a6a693');box(portico,.12,1.28,.12,x,1.06,1.38,frame);
+     box(portico,.23,.35,.23,x,.29,1.38,cafe?'#b2b0a2':'#a6a693');box(portico,cafe?.065:.12,1.28,cafe?.065:.12,x,1.06,1.38,frame);
      beam(portico,[x,1.26,1.38],[x+(x<.5?.30:-.30),1.57,1.38],.09,frame);
     }
     box(portico,1.78,.08,.08,.5,1.72,1.44,frame);
-    pitched(portico,.5,1.71,1.12,1.94,.68,.48);
-    beam(portico,[.5,1.72,1.44],[.5,2.12,1.44],.09,frame);
-    for(const x of [-.18,1.18])beam(portico,[x,1.74,1.44],[.5,2.12,1.44],.07,frame);
+    if(!cafe)pitched(portico,.5,1.71,1.12,1.94,.68,.48);
+    if(!cafe)beam(portico,[.5,1.72,1.44],[.5,2.12,1.44],.09,frame);
+    if(!cafe)for(const x of [-.18,1.18])beam(portico,[x,1.74,1.44],[.5,2.12,1.44],.07,frame);
    }
   }
   if(cafe){
+   const industrial=feature('cafe-industrial-shell');
+   // Vertical timber cladding, restrained steel grid glazing and a thin bracket-supported canopy.
+   for(let z=lo+.13;z<hi-.05;z+=.17)box(industrial,.016,1.18,.022,lo-.008,.82,z,boardTint);
+   for(let x=lo+.13;x<hi-.05;x+=.17){
+    box(industrial,.022,1.18,.016,x,.82,lo-.008,boardTint);
+    const height=(peak-1.50)*(1-Math.abs(x-.5)/half)-.09;
+    if(height>.08)box(industrial,.014,height,.018,x,1.50+height/2,hi+.012,boardTint);
+   }
+   const frontZ=hi-.02;
+   for(const x of [.62,.94])box(industrial,.026,.91,.04,x,.87,frontZ,frame);
+   box(industrial,hi-.36,.026,.04,(hi+.28)/2,.88,frontZ,frame);
+   for(const z of [.65,1.03])if(z<hi-.1)box(industrial,.04,.91,.026,hi+.023,.87,z,frame);
+   box(industrial,.04,.026,hi-lo-.74,hi+.023,.88,(lo+.7+hi-.04)/2,frame);
+   const canopy=feature('cafe-steel-canopy');const canopyY=level===3?1.73:1.58;
+   box(canopy,1.91,.045,level>=2?.48:.37,.5,canopyY,1.24,frame);
+   box(canopy,1.91,.045,.025,.5,canopyY-.04,level>=2?1.465:1.42,'#58645e');
+   for(const x of [-.28,1.28])beam(canopy,[x,canopyY-.025,1.40],[x,canopyY-.22,hi-.10],.022,frame);
+   // The flue creates a clear silhouette at every tier; no smoke particles or extra lights.
+   const flue=feature('cafe-stove-flue'),flueHeight=peak+.55;
+   const pipe=new THREE.Mesh(new THREE.CylinderGeometry(.065,.065,flueHeight,10),material(frame));pipe.position.set(lo+.22,flueHeight/2,lo+.30);pipe.castShadow=true;flue.add(pipe);
+   for(const y of [1.55,peak+.35]){const collar=new THREE.Mesh(new THREE.CylinderGeometry(.078,.078,.04,10),material('#69716a'));collar.position.set(lo+.22,y,lo+.30);flue.add(collar);}
+   box(flue,.23,.045,.23,lo+.22,flueHeight+.035,lo+.30,frame);
    const tea=feature('cafe-tables-and-pastries');
    const disk=(radius,height,x,y,z,color)=>{const m=new THREE.Mesh(new THREE.CylinderGeometry(radius,radius,height,12),material(color));m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;tea.add(m);};
    // Tables and chairs sit inside the glazed room; the entrance stays clear.
