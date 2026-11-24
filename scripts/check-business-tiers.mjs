@@ -4,6 +4,7 @@ const browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['-
 let maxMeshes=0;
 try{
  const page=await browser.newPage({viewport:{width:1100,height:850}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.addInitScript(()=>{Date.now=()=>1_800_000_000_000;});
  await page.route('**/app.js*',async route=>{const response=await route.fetch();await route.fulfill({response,body:await response.text()+`
 clearInterval(incomeTimer);renderer.setAnimationLoop(null);controls.enableDamping=false;
 const visual=g=>{const a=[];g.traverse(o=>{if(o.isMesh)a.push([Array.from(o.geometry.attributes.position.array),o.position.toArray(),o.quaternion.toArray(),o.material.color.getHexString()]);});return JSON.stringify(a);};

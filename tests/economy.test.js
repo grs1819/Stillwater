@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {ECONOMY,initialEconomy,normalizeEconomy,transactGold,removalRefund,renovationCost,visitorAppeal,advanceIncome,activeElapsed} from '../economy.js';
+import {ECONOMY,initialEconomy,normalizeEconomy,transactGold,removalRefund,renovationCost,visitorAppeal,advanceIncome} from '../economy.js';
 import {emptyWorld,cabinAt,validateWorld,renovateCabin} from '../blueprints.js';
 test('new villages get 1000 Gold; existing balances and interval progress survive migration',()=>{
  assert.equal(initialEconomy().gold,1000);
@@ -22,7 +22,6 @@ test('five-second payouts carry fractional Gold exactly through saves and rate c
  assert.equal(advanceIncome(initialEconomy(),60000,4.5).earned,54);
  let repeated=initialEconomy();for(let i=0;i<120;i++)repeated=normalizeEconomy(advanceIncome(repeated,5000,4.5).economy);
  assert.equal(repeated.gold,1540);assert.equal(repeated.goldFraction,0);
- assert.equal(activeElapsed(0,3600000,false),0);assert.equal(activeElapsed(0,3600000,true),2000);
  const capped=advanceIncome({...initialEconomy(),gold:ECONOMY.maxGold-1,goldFraction:3},5000,4.5);assert.equal(capped.earned,1);assert.equal(capped.economy.goldFraction,0);
 });
 test('refunds, renovations and inverse undo preserve earned fractions without minting Gold',()=>{

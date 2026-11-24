@@ -5,6 +5,7 @@ const browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['-
 try{for(const mobile of [false,true]){
  const page=await browser.newPage({viewport:mobile?{width:390,height:844}:{width:1280,height:850},isMobile:mobile,hasTouch:mobile});const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.addInitScript(()=>localStorage.setItem('mosswood-v2','production-sentinel'));
+ await page.addInitScript(()=>{Date.now=()=>1_800_000_000_000;});
  await page.route('**/app.js*',async route=>{const response=await route.fetch();await route.fulfill({response,body:await response.text()+`
 clearInterval(incomeTimer);if(!sessionStorage.getItem('balance-fixture')){economy.gold=500;save();sessionStorage.setItem('balance-fixture','1');}renderer.setAnimationLoop(null);controls.enableDamping=false;
 const visual=g=>{const a=[];g.traverse(o=>{if(o.isMesh)a.push({vertices:Array.from(o.geometry.attributes.position.array),position:o.position.toArray(),quaternion:o.quaternion.toArray(),color:o.material.color.getHexString()});});return JSON.stringify(a);};

@@ -1,6 +1,6 @@
 # Stillwater business economy — beta
 
-The active-play loop is now: improve appeal → host guests → serve them in shops → earn Gold → expand. This builds on founding skills; no workers, inventory simulation or offline earnings are added.
+The active-play loop is now: improve appeal → host guests → serve them in shops → earn Gold → expand. This builds on founding skills; no workers or inventory simulation are added.
 
 ## Prices and capacities
 
@@ -56,7 +56,7 @@ Total is rounded down, maximum 75. Shops and background scenery do not inflate a
 
 Continue schema-2 village saves and economy version 2. Supply Shops have their own blueprint ID with the same 2×2 footprint/entrance rules. Optional `gameplay.businessLevel` is absent/0 for existing buildings and 1–3 after upgrading. Appearance changes preserve this and all other gameplay data. Guest/customer counts are derived; calculations are cached until relevant world references change.
 
-Writes occur before committing a transaction. Undo reverses its actual Gold delta while retaining subsequent earnings. A failed or unaffordable action changes neither building state nor Gold. Functional upgrades do not raise removal refunds. Reload preserves the partial income interval without duplicating payouts. Background and suspended time do not accrue offline rewards.
+Writes occur before committing a transaction. Undo reverses its actual Gold delta while retaining subsequent earnings. A failed or unaffordable action changes neither building state nor Gold. Functional upgrades do not raise removal refunds. Reload preserves the partial income interval without duplicating payouts. Background and suspended time accrue through timestamp settlement, described below.
 
 This remains local gameplay currency, not server-authoritative anti-cheat: exported saves can be edited. Freeform building and landscaping remain free and do not operate businesses. Production files, saves, audio and account settings are unchanged.
 
@@ -80,10 +80,21 @@ Pacing: a cabin and shop serving two guests earn 48 Hospitality XP/minute. Hospi
 
 ## Café and progression balance
 
-The café is a schema-2 `woodland-cafe` blueprint with the same entrance, 2×2 footprint, architecture, finishes, renovation and save rules. Hospitality 2 (60 XP) unlocks it; both UI selection and placement/ghost validation enforce the gate. Existing imported cafés can still be renovated. The café has visible tables/chairs, cups, pastries, a cup emblem and menu board; tiers add a planter counter, roof windows and timber portico. No workers, recipes, inventories or offline accrual are introduced.
+The café is a schema-2 `woodland-cafe` blueprint with the same entrance, 2×2 footprint, architecture, finishes, renovation and save rules. Hospitality 2 (60 XP) unlocks it; both UI selection and placement/ghost validation enforce the gate. Existing imported cafés can still be renovated. The café has visible tables/chairs, cups, pastries, a cup emblem and menu board; tiers add a planter counter, roof windows and timber portico. No workers, recipes or inventories are introduced.
 
 Each staying guest can visit one shop AND one café per payout. Nearest available businesses are allocated deterministically within six tiles, separately by service type. Duplicating cafés cannot duplicate a guest's café payment or Hospitality XP. A café cannot create lodging demand or earn in isolation. Cafés award the same one Hospitality XP per served customer and Construction XP on genuine expansion/upgrades as existing businesses.
 
 Cabin tiers 2/3 now cost 250/450 (previously 300/600); shop tiers 2/3 cost 275/500 (previously 350/650). Existing balances, earned XP, purchased tiers and first upgrade prices remain unchanged; no retroactive refunds or resets. The XP curve is unchanged. Starting with two guests and a shop, Hospitality 2 takes about 75 active seconds. Adding a café brings earnings from 54 to 66 Gold/min and Hospitality from 48 to 72 XP/min. Continuing to serve those guests reaches Hospitality 3 around 2–3 active minutes total, and Hospitality 5 around 5 minutes. Real results depend on occupancy and player spending. This balances the early loop through an achievable new service and lower upgrade costs rather than granting XP for purchases.
 
 Café tests cover customer sharing/range/capacity, no lodging demand, exact Gold/XP rates, unlocks, pricing, save/renovation identity, bounds, real desktop/mobile placement and undo. Physical device performance remains a playtest check.
+
+
+## Uncapped offline and background income
+
+The optional `economy.lastIncomeAt` field records UTC epoch milliseconds for each village. Gold, Hospitality XP, fractional Gold, partial payout interval and this checkpoint are saved atomically. `settleIncome` calculates all elapsed time arithmetically using the saved village's guest and service report. There is **no offline-duration cap**, including beyond four hours. Existing numeric ceilings (1 billion Gold / XP) remain; they are storage/progression limits, not time limits. Only Hospitality activity accrues XP offline; no construction or planting XP is invented.
+
+Visible tabs earn without browser focus. Hidden/suspended/closed pages settle their elapsed time upon resuming; no background worker or continuously running browser is needed. Payouts are checkpointed before edits/undo and village switches, so an upgraded business cannot retroactively earn its new rate for the time away. Inactive slots settle independently when opened. First loads of older saves initialize the timestamp without invented historical income. Imported files start a fresh local checkpoint to avoid replaying an old export's elapsed time.
+
+A welcome-back notice reports saved Gold and Hospitality XP after a gap of at least 30 seconds. Dismissing it is not a claim operation. Repeated reload/focus/visibility events at the same time give no additional credit. Moving the device clock backwards never moves the checkpoint backwards. The existing local-store stale-tab guard prevents replacing another tab's collection; failed writes leave the original balance, XP and timestamp unchanged for retry. Local device time remains editable; this is not server-authoritative anti-cheat or cross-device payout reconciliation.
+
+Tests: `offline-income.test.js` covers legacy initialization, 24-hour/year-long absences, repeated/backward time, fractions, changed rates, failed writes/stale tabs and independent slots. `check-offline.mjs` exercises actual unload/return, background/unfocused behavior, repeated lifecycle events, failed-write retry, two tabs, slots, imports and desktop/mobile summary UI. Existing active-only pacing examples above describe the same rates, now accruing offline too.

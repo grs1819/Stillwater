@@ -3,6 +3,7 @@ const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 const browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox','--enable-unsafe-swiftshader']});
 try{for(const mobile of [false,true]){
  const page=await browser.newPage({viewport:mobile?{width:390,height:844}:{width:1280,height:850},isMobile:mobile,hasTouch:mobile}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.addInitScript(()=>{Date.now=()=>1_800_000_000_000;});
  await page.route('**/app.js*',async route=>{const response=await route.fetch();await route.fulfill({response,body:await response.text()+`
 clearInterval(incomeTimer);renderer.setAnimationLoop(null);controls.enableDamping=false;
 window.probe={data:currentVillageData,earn:earnDuringPlay,save,undo,edit,selectTool,namespace:saveNamespace,
