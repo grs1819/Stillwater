@@ -152,9 +152,9 @@
               <p>Choose a species and tap empty, dry ground to plant.</p>
             </div>
             <div id="role-options" class="water-options" hidden>
-              <div class="building-title"><strong>Freeform building</strong><button id="purpose-back" class="secondary">← Buildings</button></div><label for="building-role">PURPOSE</label>
+              <div class="building-title"><strong id="freeform-title">Freeform building</strong><button id="purpose-back" class="secondary">← Buildings</button></div><label for="building-role">PURPOSE</label>
               <select id="building-role"><option value="home">Home</option><option value="fishing">Fishing hut</option><option value="supply">Outdoor supply shop</option><option value="cafe">Bakery &amp; café</option><option value="inn">Inn &amp; lodge</option><option value="workshop">Carpenter’s workshop</option><option value="boathouse">Boathouse</option></select>
-              <p>Applies to connected rooms. Decorative purpose and villager visits; no business income.</p>
+              <p id="freeform-note"></p><button id="lodge-open" class="secondary">Open Guest Lodge · 200 Gold</button><div id="freeform-business"></div>
             </div>
             <div id="water-options" class="water-options" hidden>
               <label for="water-kind">SHAPE YOUR WATER</label>
@@ -204,6 +204,6 @@
   </section>
   <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
   <aside id="offline-notice" class="offline-notice" hidden aria-label="Offline earnings"><strong>Welcome back</strong><p id="offline-summary" role="status" aria-live="polite"></p><button id="offline-dismiss" class="secondary">Lovely · close</button></aside>
-  <script type="module" src="./app.js?v=industrial-dormer-2"></script>
+  <script type="module" src="./app.js?v=freeform-lodge-1"></script>
 </body>
 </html>

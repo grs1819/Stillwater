@@ -2,6 +2,7 @@ import http from 'node:http';
 import {MUSIC_TRACKS} from './audio.js';
 import {readFile} from 'node:fs/promises';
 const files = {
+  '/freeform.js':'freeform.js',
   '/skills.js':'skills.js','/skills-view.js':'skills-view.js','/economy.js':'economy.js','/businesses.js':'businesses.js','/blueprints.js':'blueprints.js','/cabin-view.js':'cabin-view.js',
   ...Object.fromEntries(MUSIC_TRACKS.map(track=>[track.src.slice(1),track.src.slice(2)])),
   ...Object.fromEntries(['accounts.js','account-config.js','cloud-sync.js','vendor/supabase.js'].map(path=>['/'+path,path])),

@@ -1,8 +1,9 @@
-import {developmentXP,hospitalityXP,levelGains,unlocked} from './skills.js';
+import {LODGE_COST,freeformLodges,selectedLodge,lodgeOpeningError,openLodge,reconcileLodges,setLodgeLevel} from './freeform.js';
+import {developmentXP,hospitalityXP,levelGains,unlocked} from './skills.js?v=freeform-lodge-1';
 import {createSkillsView} from './skills-view.js';
-import {businessSummary,upgradeQuote,upgradeBusiness,upgradeError,businessTier,settleIncome} from './businesses.js';
+import {businessSummary,upgradeQuote,upgradeBusiness,upgradeError,businessTier,settleIncome} from './businesses.js?v=freeform-lodge-1';
 import {ECONOMY,transactGold,removalRefund,renovationCost,advanceIncome} from './economy.js';
-import {renovateCabin,emptyWorld,validateWorld,buildingAt,BLUEPRINTS,CABIN,SHOP,CAFE,placementError,cabinOccupancy,navigationBlocks,footprint} from './blueprints.js';
+import {renovateCabin,emptyWorld,validateWorld,buildingAt,BLUEPRINTS,CABIN,SHOP,CAFE,placementError,cabinOccupancy,navigationBlocks,footprint} from './blueprints.js?v=freeform-lodge-1';
 import {createCabinView} from './cabin-view.js?v=industrial-dormer-2';
 import {createAccounts} from './accounts.js';
 import {createCloudSync,supabaseRemote} from './cloud-sync.js';
@@ -15,7 +16,7 @@ import {waterKey,waterEdit} from './water.js';
 import {createWaterView} from './water-view.js';
 import {pathLinks,dockOpen,pathOutline} from './navigation.js';
 import {createVillagers} from './villagers.js';
-import {LIMIT, key, directions, normalize, cottageCount, canPlace, removeBlock, archAxis, roofPlan, architecturePlan, assignRole, upgradeCamp, campsitePlan, lookoutPlan, entrancePlan, joinedRoofHeight, deckCoverPlan, porchFinishPlan, campFacing} from './town.js';
+import {LIMIT, key, directions, normalize, cottageCount, canPlace, removeBlock, archAxis, roofPlan, architecturePlan, assignRole, upgradeCamp, campsitePlan, lookoutPlan, entrancePlan, joinedRoofHeight, deckCoverPlan, porchFinishPlan, campFacing} from './town.js?v=freeform-lodge-1';
 
 const $=s=>document.querySelector(s);
 const canvas=$('#world');
@@ -141,7 +142,7 @@ function updateEconomyUI(){
  $('#appeal-summary').textContent=`Appeal ${appeal.score} · +${income*60000/ECONOMY.intervalMs}/min`;
  $('#appeal-breakdown').replaceChildren(...Object.entries(appeal.parts).map(([label,value])=>{const row=document.createElement('div');row.textContent=`${label}: ${value}`;return row;}));
  $('#business-overview').textContent=`${report.guests} guests staying · demand for ${report.demand}. Baseline: +${report.baseline*perMinute} Gold/min; businesses: +${(income-report.baseline)*perMinute} Gold/min.`;
- const original=cabins.find(b=>b.id===selectedCabin),cost=original&&renovationDraft?renovationCost(original,renovationDraft):0,definition=BLUEPRINTS[original?.blueprint||placementBlueprint()];
+ const original=cabins.find(b=>b.id===selectedCabin)||selectedLodge(blocks,selectedFreeform,water),cost=original&&renovationDraft?renovationCost(original,renovationDraft):0,definition=BLUEPRINTS[original?.blueprint]||BLUEPRINTS[placementBlueprint()];
  $('#cabin-price').textContent=original?`Design change: ${ECONOMY.renovationCost} Gold`:`${definition.cost} Gold · 2 × 2`;
  $('#renovation-confirm').textContent=cost?`Confirm · ${cost} Gold`:'Confirm · Free';$('#renovation-confirm').disabled=!renovationDraft||!!fundsError(cost);
  $('#renovation-funds').textContent=renovationDraft?(fundsError(cost)||''):'';
@@ -723,6 +724,32 @@ function drapePath(root){
  });
 }
 
+// Sparse, structure-wide details: one entrance and at most one suitable dormer per lodge.
+function lodgeDetails(lodge){
+ const level=lodge.gameplay.businessLevel,entry=lodge.entry;if(!entry)return;
+ const [x,y,z]=entry.k.split(',').map(Number),g=new THREE.Group();g.name='freeform-lodge-details';g.position.set(x,terrainHeight(terrain,x,z),z);g.rotation.y=entry.dx?entry.dx*Math.PI/2:entry.dz===-1?Math.PI:0;buildings.add(g);
+ const frame='#665540',finish=roofs[blocks[entry.k].roof];
+ box(g,.48,.10,.045,0,.86,.53,frame);for(const offset of [-.15,0,.15])box(g,.04,.04,.012,offset,.86,.56,'#e2c990');
+ if(level>=1){
+  const canopy=box(g,.82,.055,.20,0,.76,.58,finish);canopy.rotation.x=.12;canopy.name='lodge-entry-canopy';
+  for(const side of [-1,1]){box(g,.045,.12,.05,side*.34,.67,.55,frame);box(g,.08,.12,.07,side*.35,.54,.54,'#e6c887');}
+ }
+ if(level>=3){
+  box(g,.27,.05,.13,-.34,.25,.58,frame).name='lodge-entry-bench';
+  for(const px of [-.44,-.24])box(g,.035,.22,.10,px,.11,.58,frame);
+  box(g,.27,.14,.035,-.34,.35,.53,frame);
+ }
+ if(level<2)return;
+ const forms=[...new Set(lodge.keys.map(k=>roofForms.get(k)).filter(f=>f?.kind==='gable'&&f.hi-f.lo>=2))];
+ const form=forms.find(f=>{const tiles=lodge.keys.filter(k=>roofForms.get(k)===f);return tiles.length/(f.hi-f.lo)>=2;});if(!form)return;
+ const tiles=lodge.keys.filter(k=>roofForms.get(k)===form),coords=tiles.map(k=>k.split(',').map(Number)),along=coords.map(c=>form.axis==='z'?c[2]:c[0]);
+ const [ax,ay,az]=form.anchor.split(',').map(Number),rise=architecture.get(form.anchor).tier==='estate'?1.35:1,h=form.height*rise,half=(form.hi-form.lo)/2,mid=(Math.min(...along)+Math.max(...along))/2;
+ const dormer=new THREE.Group();dormer.name='lodge-loft-dormer';dormer.position.set(form.axis==='z'?form.ridge:mid,ay+1+terrainHeight(terrain,ax,az),form.axis==='z'?mid:form.ridge);if(form.axis==='z')dormer.rotation.y=Math.PI/2;buildings.add(dormer);
+ box(dormer,.65,h*.53,half*.36,0,h*.585,half*.45,frame);
+ box(dormer,.49,h*.26,.025,0,h*.63,half*.64,'#c0d6ce');box(dormer,.035,h*.28,.035,0,h*.63,half*.66,frame);
+ const cap=box(dormer,.76,.04,half*.45,0,h*.88,half*.45,finish);cap.rotation.x=.10;
+}
+
 function rebuild(){
   renderer.shadowMap.needsUpdate=true;
   clear(buildings);targets=[];campFlames=[];
@@ -734,7 +761,7 @@ function rebuild(){
   const camps=campsitePlan(blocks);
   deckCovers=deckCoverPlan(blocks);
   porchFinishes=porchFinishPlan(blocks);
-  const entrances=entrancePlan(blocks,water);
+  const entrances=entrancePlan(blocks,water),lodges=freeformLodges(blocks,water),lodgeTiles=new Map(lodges.flatMap(b=>b.keys.map(k=>[k,b])));
   const buildingFronts=new Map();
   for(const [id,entry]of entrances)buildingFronts.set(architecture.get(id),entry);
   for(const [k,b]of Object.entries(blocks)){
@@ -752,6 +779,7 @@ function rebuild(){
     if(b.type==='path')pathTile(buildings,x,z);
     if(b.type==='house'){
       const wetBase=y===0&&!!water[waterKey(x,z)],base=wetBase?.26:0;
+      const lodgeLevel=lodgeTiles.get(k)?.gameplay.businessLevel||0;
       const tier=architecture.get(k).tier,estate=tier==='estate',lodge=tier==='lodge';
       const lookout=lookouts.has(k);
       if(lookout)lookoutRoom(buildings,x,y,z,b);
@@ -772,13 +800,13 @@ function rebuild(){
         let left=0,right=0;while(exposed(-left-1))left++;while(exposed(right+1))right++;
         const quietBay=estate&&!isFront&&left+right>=2&&left%2===1;
         const face=new THREE.Group();face.position.set(x+dx*.505,y+base,z+dz*.505);face.scale.y=1-base;face.rotation.y=dx?dx*Math.PI/2:dz===-1?Math.PI:0;buildings.add(face);
-        if(lodge){
+        if(lodge&&lodgeLevel<2){
           for(let h=.1;h<1;h+=.16){
             const log=new THREE.Mesh(new THREE.CylinderGeometry(.085,.085,1,7),material(timber[b.wood]));
             log.rotation.z=Math.PI/2;log.position.set(0,h,.008);log.castShadow=true;face.add(log);
           }
-        }else if(estate){
-          if(y>0)for(let i=-4;i<=4;i++)box(face,.012,.88,.012,i*.11,.5,.008,'#8d7554');
+        }else if(estate||lodgeLevel>=2){
+          if(y>0||lodgeLevel>=2)for(let i=-4;i<=4;i++)box(face,.012,.88,.012,i*.11,.5,.008,'#8d7554');
           // Light cornices belong at roof edges, rather than framing every room.
           if(!blocks[key(x,y+1,z)])box(face,1,.045,.065,0,.96,.018,'#eaddc2');
           if(y===0)box(face,1,.07,.055,0,.07,.015,'#a79a7e');
@@ -789,7 +817,7 @@ function rebuild(){
             if(y===0)for(let h=.23;h<.9;h+=.3)box(face,.095,.07,.05,side*.46,h,.02,'#d0c5aa');
           }
         }else for(let h=.17;h<1;h+=.19)box(face,1,.017,.016,0,h,0,'#987951');
-        if(lodge||estate){
+        if(lodge||estate||lodgeLevel>=2){
           const beamColor=new THREE.Color(timber[b.wood]).multiplyScalar(.72).getStyle();
           box(face,1,.09,.11,0,.94,.045,beamColor).name='timber-header';
           for(const side of [-1,1]){
@@ -823,11 +851,19 @@ function rebuild(){
             if(estate)box(face,w+.06,.025,.075,wx,.56-h/2-.025,.045,'#d9caae');
           }
         }
+        if(lodgeLevel>=1&&!quietBay&&!entryBay){
+          box(face,.46,.085,.13,0,.30,.10,'#8b7051').name='lodge-flower-box';
+          for(const offset of [-.14,0,.14]){box(face,.12,.08,.09,offset,.36,.10,'#729267');box(face,.045,.045,.04,offset,.41,.11,'#dbc38b');}
+        }
+        if(lodgeLevel>=3&&y===0){
+          box(face,1,.22,.09,0,.11,.045,'#aaa897').name='lodge-stone-plinth';
+          for(const px of [-.32,0,.32])box(face,.015,.17,.012,px,.11,.095,'#7f8176');
+        }
         // Brackets under cantilevered rooms, leaving walkable space below.
         if(y>0&&!blocks[key(x,y-1,z)]){const brace=box(face,.07,.48,.07,dx?-.29:.29,-.13,-.12,'#8a7050');brace.rotation.x=-.65;}
       }
       const front=entrances.get(k);
-      if(front&&b.role&&b.role!=='home')roleDetails(buildings,x,z,b.role,base,front.dx,front.dz);
+      if(front&&!lodgeTiles.has(k)&&b.role&&b.role!=='home')roleDetails(buildings,x,z,b.role,base,front.dx,front.dz);
       // Shared entrances follow adjacent paths, with stairs only on clear ground.
       if(y===0&&front){
         const nx=x+front.dx,nz=z+front.dz;
@@ -852,6 +888,7 @@ function rebuild(){
     const elevation=terrainHeight(terrain,x,z);
     for(const child of buildings.children.slice(childStart)){if(b.type==='path'&&!levelSite(terrain,x,z))drapePath(child);else child.position.y+=elevation;}
   }
+  for(const lodge of lodges)lodgeDetails(lodge);
   const cabinTargets=cabinView.update(cabins,(x,z)=>terrainHeight(terrain,x,z));
   pickTargets=[...cabinTargets,...targets,...clearing.children,ground];
   buildings.updateMatrixWorld(true);clearing.updateMatrixWorld(true);
@@ -860,6 +897,7 @@ function rebuild(){
 }
 function commit(next,nextWater=water,nextTerrain=terrain,nextCabins=cabins,goldDelta=0){
  if(!checkpointIncome())return false;
+ try{next=reconcileLodges(blocks,next);}catch(error){notify(error.message);return false;}
  let nextEconomy;try{nextEconomy=transactGold(economy,goldDelta);}catch(error){notify(error.message);return false;}
  const nextPeak=Math.max(peak,cottageCount(next)),beforeSkills=skillProgress;
  const data={schemaVersion:2,blocks:next,water:nextWater,terrain:nextTerrain,peak:nextPeak,buildings:nextCabins,economy:nextEconomy};
@@ -1212,9 +1250,14 @@ function setBuildingDetail(which){
 }
 $('#business-toggle').onclick=()=>{cancelRenovation();setBuildingDetail($('#business-panel').hidden?'business':null);};
 $('#appearance-toggle').onclick=()=>{const open=$('#appearance-panel').hidden;if(!open)cancelRenovation();setBuildingDetail(open?'appearance':null);};
+const businessHomes=['business-summary','business-toggle','business-panel'].map(id=>{const node=$('#'+id),marker=document.createComment(id);node.before(marker);return {node,marker};});
 function syncFreeformPanel(){
  const b=blocks[selectedFreeform];if(b?.type!=='house')selectedFreeform=null;
- const selected=!!selectedFreeform;
+ const selected=!!selectedFreeform,lodge=selected?selectedLodge(blocks,selectedFreeform,water):null;
+ for(const {node,marker}of businessHomes){if(selected)$('#freeform-business').append(node);else marker.after(node);}
+ $('#lodge-open').hidden=!!lodge;$('#lodge-open').disabled=!!lodgeOpeningError(blocks,selectedFreeform,water)||!!fundsError(LODGE_COST);
+ $('#building-role').disabled=!!lodge;$('#freeform-title').textContent=lodge?businessTier(lodge).name:'Freeform building';
+ $('#freeform-note').textContent=lodge?'Guest Lodge · one business across connected rooms. Splits keep one business; operating lodges cannot merge. Fewer than four ground rooms or a blocked entrance pauses guests.':(selected?lodgeOpeningError(blocks,selectedFreeform,water)||fundsError(LODGE_COST):null)||'Open a Guest Lodge for income. Other purposes remain decorative.';
  dock.classList.toggle('freeform-context',selected);$('#role-options').hidden=!selected;
  $('#building-materials').hidden=tool!=='house'||selected;
  $('#freeform-inspect').setAttribute('aria-pressed',String(inspectFreeform));$('#freeform-inspect').textContent=inspectFreeform?'Tap a building · cancel selection':'Select existing building';
@@ -1224,9 +1267,10 @@ function inspectBuilding(hit){
  if(hit?.buildingId){inspectFreeform=false;edit(hit);return;}
  const k=hit?key(...hit.position):null;
  if(blocks[k]?.type!=='house'){notify('Select an existing freeform building.');return;}
- selectTool('house');selectedCabin=null;selectedFreeform=k;$('#building-mode').value='freeform';syncCabinPanel();syncFreeformPanel();clearPreview();setDock(true);
+ selectTool('house');selectedCabin=null;selectedFreeform=k;$('#building-mode').value='freeform';syncCabinPanel();syncFreeformPanel();updateEconomyUI();clearPreview();setDock(true);
 }
 $('#freeform-inspect').onclick=()=>{inspectFreeform=!inspectFreeform;syncFreeformPanel();if(inspectFreeform){setDock(false);notify('Tap a freeform building to edit its purpose.');}};
+$('#lodge-open').onclick=()=>{if(!selectedFreeform)return;try{const next=openLodge(blocks,selectedFreeform,water);if(commit(next,water,terrain,cabins,-LODGE_COST)){syncFreeformPanel();setBuildingDetail('business');}}catch(error){notify(error.message);}};
 $('#purpose-back').onclick=()=>{selectedFreeform=null;selectTool('house');setDock(true);};
 $('#building-role').onchange=()=>{if(!selectedFreeform)return;const next=assignRole(blocks,selectedFreeform,$('#building-role').value);if(next)commit(next);syncFreeformPanel();};
 $('#building-mode').onchange=()=>{cancelRenovation(false);setBuildingDetail(null);selectedFreeform=null;inspectFreeform=false;selectedCabin=null;clearPreview();syncCabinPanel();};
@@ -1249,9 +1293,10 @@ for(const id of ['cabin-design','cabin-exterior','cabin-roof'])$('#'+id).onchang
 };
 $('#renovation-cancel').onclick=()=>cancelRenovation();
 $('#business-upgrade').onclick=()=>{
- const original=cabins.find(b=>b.id===selectedCabin);if(!original||renovationDraft||upgradeError(original,skillProgress))return;
+ const original=cabins.find(b=>b.id===selectedCabin)||selectedLodge(blocks,selectedFreeform,water);if(!original||renovationDraft||upgradeError(original,skillProgress))return;
  const next=upgradeBusiness(original,skillProgress),quote=upgradeQuote(original);
- if(commit(blocks,water,terrain,cabins.map(b=>b.id===next.id?next:b),-quote.cost)){sound.effect('wood');syncCabinPanel();}
+ const freeform=original.blueprint==='freeform-lodge';
+ if(commit(freeform?setLodgeLevel(blocks,original,next.gameplay.businessLevel):blocks,water,terrain,freeform?cabins:cabins.map(b=>b.id===next.id?next:b),-quote.cost)){sound.effect('wood');syncCabinPanel();syncFreeformPanel();}
 };
 $('#renovation-confirm').onclick=()=>{
  const draft=renovationDraft;if(!draft)return;

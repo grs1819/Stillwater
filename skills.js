@@ -1,8 +1,9 @@
+import {lodgeRecords} from './freeform.js';
 // Skill state is independent of Gold and ready for future event/unlock consumers.
 export const PROGRESSION=Object.freeze({maxLevel:20,baseXP:60,growth:1.22,maxXP:1_000_000_000});
 export const SKILL_DEFINITIONS=Object.freeze({
  cultivation:{name:'Cultivation',description:'Grow your village’s tree count beyond its previous record.'},
- construction:{name:'Construction',description:'Expand your blueprint buildings and functional upgrades.'},
+ construction:{name:'Construction',description:'Complete buildings and functional business upgrades.'},
  hospitality:{name:'Hospitality',description:'Welcome staying guests and serve shop customers during active play.'},
  conservation:{name:'Conservation',description:'Future habitat activities. No XP source in this milestone.'},
 });
@@ -23,7 +24,7 @@ export function skillStatus(xp){
  const level=skillLevel(xp),start=xpForLevel(level),next=level===PROGRESSION.maxLevel?null:xpForLevel(level+1);
  return {level,xp,next,remaining:next===null?0:next-xp,progress:next===null?1:(xp-start)/(next-start)};
 }
-export function developmentCounts(world){return {trees:Object.values(world.blocks||{}).filter(b=>b.type==='tree').length,buildings:(world.buildings||[]).length,upgrades:(world.buildings||[]).reduce((n,b)=>n+(b.gameplay?.businessLevel||0),0)};}
+export function developmentCounts(world){return {trees:Object.values(world.blocks||{}).filter(b=>b.type==='tree').length,buildings:(world.buildings||[]).length+lodgeRecords(world.blocks||{}).length,upgrades:lodgeRecords(world.blocks||{}).reduce((n,b)=>n+b.level,0)+(world.buildings||[]).reduce((n,b)=>n+(b.gameplay?.businessLevel||0),0)};}
 export function initialSkills(world={}){return {version:1,xp:Object.fromEntries(ids.map(id=>[id,0])),records:developmentCounts(world)};}
 export function normalizeSkills(value,world){
  if(value===undefined)return initialSkills(world);

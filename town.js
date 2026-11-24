@@ -20,6 +20,10 @@ export function normalize(data, legacy=false) {
     for(let i=0;i<floors;i++) if(inside(x,y+i,z) && (['house','balcony'].includes(b.type)||y+i===0)) {
       blocks[key(x,y+i,z)]={type:b.type,wood:['oak','birch','cedar'].includes(b.wood)?b.wood:'oak',roof:['moss','clay','slate'].includes(b.roof)?b.roof:'moss'};
       if(b.type==='house'&&ROLES.includes(b.role)&&b.role!=='home')blocks[key(x,y+i,z)].role=b.role;
+      if(b.type==='house'&&b.lodge!==undefined){
+        if(!b.lodge||!/^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.test(b.lodge.id)||![0,1,2,3].includes(b.lodge.level))throw new Error('Invalid Guest Lodge record.');
+        blocks[key(x,y+i,z)].lodge={id:b.lodge.id,level:b.lodge.level};
+      }
       if(b.type==='balcony'&&['pergola','roofed'].includes(b.cover))blocks[key(x,y+i,z)].cover=b.cover;
       if(b.type==='path')blocks[key(x,y+i,z)].surface=b.surface==='cobble'?'cobble':'gravel';
       if(b.type==='tree')blocks[key(x,y+i,z)].species=TREE_TYPES.includes(b.species)?b.species:'pine';
