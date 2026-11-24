@@ -3,7 +3,7 @@ import {createSkillsView} from './skills-view.js';
 import {businessSummary,upgradeQuote,upgradeBusiness,upgradeError,businessTier,settleIncome} from './businesses.js';
 import {ECONOMY,transactGold,removalRefund,renovationCost,advanceIncome} from './economy.js';
 import {renovateCabin,emptyWorld,validateWorld,buildingAt,BLUEPRINTS,CABIN,SHOP,CAFE,placementError,cabinOccupancy,navigationBlocks,footprint} from './blueprints.js';
-import {createCabinView} from './cabin-view.js';
+import {createCabinView} from './cabin-view.js?v=industrial-dormer-2';
 import {createAccounts} from './accounts.js';
 import {createCloudSync,supabaseRemote} from './cloud-sync.js';
 import {createVillageStore} from './village-store.js';
