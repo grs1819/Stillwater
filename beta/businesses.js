@@ -1,7 +1,7 @@
 import {SHOP,CAFE,entrance,footprint} from './blueprints.js';
-import {ECONOMY,visitorAppeal} from './economy.js';
-import {skillLevel} from './skills.js';
-// Abstract occupancy: deterministic, derived from the village, and never accrued offline.
+import {ECONOMY,visitorAppeal,advanceIncome} from './economy.js';
+import {skillLevel,hospitalityXP} from './skills.js';
+// Abstract occupancy is deterministic and derived from the saved village for both active and offline payouts.
 export const BUSINESS=Object.freeze({baseDemand:2,appealPerGuest:10,shopRadius:6,cabinCapacity:[2,4,6,6],shopCapacity:[4,8,10,12],cabinUpgrade:150,shopUpgrade:175,goldPerGuest:.75,goldPerCustomer:.75});
 // Each tier is a purchase, not an architectural renovation. Existing tier 1 benefits remain intact.
 export const BUSINESS_TIERS=Object.freeze({
@@ -62,4 +62,16 @@ export function businessSummary(world){
  for(const row of shops){row.income=row.customers*row.rate;row.hint=row.customers===0?'Place occupied cabins within 6 tiles. Businesses of the same type share customers.':row.customers>=row.capacity&&row.level<3?'Upgrade to serve more guests and improve earnings.':'Each guest can visit one shop and one café. More occupied cabins can bring customers.';}
  const guests=cabins.reduce((n,r)=>n+r.guests,0),businessIncome=rows.reduce((n,r)=>n+r.income,0);
  return {appeal,demand,guests,rows,baseline:ECONOMY.baselineIncome,income:ECONOMY.baselineIncome+businessIncome};
+}
+
+// One constant-time payout for all elapsed wall time, without an offline duration cap.
+// Persist the returned Gold, XP and timestamp together before exposing any rewards.
+export function settleIncome(economy,skills,report,now){
+ if(!Number.isSafeInteger(now)||now<0||now>8_640_000_000_000_000)throw new Error('Invalid income time.');
+ const previous=economy.lastIncomeAt;
+ if(previous===undefined)return {economy:{...economy,lastIncomeAt:now},skills,elapsed:0,earned:0,ticks:0};
+ // Moving the system clock backwards never moves the saved checkpoint backwards.
+ if(now<=previous)return {economy,skills,elapsed:0,earned:0,ticks:0};
+ const elapsed=now-previous,result=advanceIncome(economy,elapsed,report.income);
+ return {...result,economy:{...result.economy,lastIncomeAt:now},skills:hospitalityXP(skills,report,result.ticks),elapsed};
 }

@@ -1,7 +1,7 @@
 import {developmentXP,hospitalityXP,levelGains,unlocked} from './skills.js';
 import {createSkillsView} from './skills-view.js';
-import {businessSummary,upgradeQuote,upgradeBusiness,upgradeError,businessTier} from './businesses.js';
-import {ECONOMY,transactGold,removalRefund,renovationCost,advanceIncome,activeElapsed} from './economy.js';
+import {businessSummary,upgradeQuote,upgradeBusiness,upgradeError,businessTier,settleIncome} from './businesses.js';
+import {ECONOMY,transactGold,removalRefund,renovationCost,advanceIncome} from './economy.js';
 import {renovateCabin,emptyWorld,validateWorld,buildingAt,BLUEPRINTS,CABIN,SHOP,CAFE,placementError,cabinOccupancy,navigationBlocks,footprint} from './blueprints.js';
 import {createCabinView} from './cabin-view.js';
 import {createAccounts} from './accounts.js';
@@ -111,7 +111,7 @@ let villages=guestVillages,cloud=null,accountUser=null,accounts=null,accountBusy
 let state=villages.active?.data||emptyWorld();
 let skillProgress=state.skills;
 const skillView=createSkillsView($('#skills-list'));let lastSkillsView=null;
-let economy=state.economy,incomeBlocked=false,lastIncomeTime=performance.now();
+let economy=state.economy,incomeBlocked=false;
 let water=state.water,terrain=state.terrain||{},levelTarget=null;
 const waterView=createWaterView(scene,material,box);
 const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
@@ -178,8 +178,26 @@ function earnDuringPlay(elapsedMs){
  if(result.ticks&&!save({...currentVillageData(),economy:result.economy,skills:nextSkills})){incomeBlocked=true;return;}
  economy=result.economy;skillProgress=nextSkills;if(result.ticks){updateEconomyUI();updateSkillsUI();goldFeedback(result.earned);presentLevelGains(beforeSkills,skillProgress);}
 }
-function incomeHeartbeat(){const now=performance.now(),elapsed=activeElapsed(lastIncomeTime,now,!document.hidden&&document.hasFocus());lastIncomeTime=now;if(elapsed)earnDuringPlay(elapsed);}
-function checkpointIncome(){lastIncomeTime=performance.now();if(!incomeBlocked&&!villages.error&&!save())incomeBlocked=true;}
+function settleVillageIncome(force=false){
+ if(villages.error||(incomeBlocked&&!force))return false;
+ if(!villages.active)return true;
+ const now=Date.now();
+ if(!force&&economy.lastIncomeAt!==undefined&&now-economy.lastIncomeAt<ECONOMY.intervalMs)return true;
+ const before=skillProgress,result=settleIncome(economy,skillProgress,currentBusiness(),now);
+ if(result.economy===economy)return true;
+ if(!save({...currentVillageData(),economy:result.economy,skills:result.skills})){incomeBlocked=true;return false;}
+ economy=result.economy;skillProgress=result.skills;incomeBlocked=false;
+ updateEconomyUI();updateSkillsUI();
+ if(result.elapsed>=30_000&&(result.earned||skillProgress.xp.hospitality>before.xp.hospitality)){
+  const minutes=Math.floor(result.elapsed/60000),duration=minutes>=60?`${Math.floor(minutes/60)}h ${minutes%60}m`:minutes?`${minutes}m`:`${Math.floor(result.elapsed/1000)}s`;
+  $('#offline-summary').textContent=`While you were away (${duration}): +${result.earned.toLocaleString()} Gold · +${(skillProgress.xp.hospitality-before.xp.hospitality).toLocaleString()} Hospitality XP. Earnings saved.`;
+  $('#offline-notice').hidden=false;
+ }else if(result.earned)goldFeedback(result.earned);
+ presentLevelGains(before,skillProgress);return true;
+}
+function incomeHeartbeat(){if(!document.hidden)settleVillageIncome();}
+function checkpointIncome(){return settleVillageIncome(true);}
+$('#offline-dismiss').onclick=()=>{$('#offline-notice').hidden=true;};
 function save(data=currentVillageData()){
  try{if(!villages.active){if(JSON.stringify(data)===JSON.stringify(emptyWorld()))return true;villages.create('My village',data);}else if(JSON.stringify(data)!==JSON.stringify(villages.active.data))villages.save(data);cloud?.schedule();return true;}
  catch(error){villageMessage(error.message+' Keep this tab open and export your village.');return false;}
@@ -841,6 +859,7 @@ function rebuild(){
   villagers.rebuild(navigationBlocks(blocks,cabins),water,peak>=3,terrain);
 }
 function commit(next,nextWater=water,nextTerrain=terrain,nextCabins=cabins,goldDelta=0){
+ if(!checkpointIncome())return false;
  let nextEconomy;try{nextEconomy=transactGold(economy,goldDelta);}catch(error){notify(error.message);return false;}
  const nextPeak=Math.max(peak,cottageCount(next)),beforeSkills=skillProgress;
  const data={schemaVersion:2,blocks:next,water:nextWater,terrain:nextTerrain,peak:nextPeak,buildings:nextCabins,economy:nextEconomy};
@@ -857,6 +876,7 @@ function commit(next,nextWater=water,nextTerrain=terrain,nextCabins=cabins,goldD
 }
 function undo(){
  if(renovationDraft){cancelRenovation();return;}clearPreview();if(!history.length)return;
+ if(!checkpointIncome())return;
  const previous=JSON.parse(history.at(-1));let nextEconomy;
  try{nextEconomy=transactGold(economy,-(previous.goldDelta||0));}catch(error){notify('Cannot undo yet. '+error.message);return;}
  const data={schemaVersion:2,blocks:previous.blocks,water:previous.water,terrain:previous.terrain||{},peak,buildings:previous.cabins||[],economy:nextEconomy,skills:skillProgress};
@@ -1244,8 +1264,8 @@ $('#renovation-confirm').onclick=()=>{
 function currentVillageData(){return {schemaVersion:2,blocks,water,terrain,peak,buildings:cabins,economy,skills:skillProgress};}
 function loadVillage(slot){
  cancelRenovation(false);setSkills(false);clearTimeout(presentLevelGains.timer);$('#skill-toast').hidden=true;
- ({blocks,water,terrain,peak,buildings:cabins,economy,skills:skillProgress}=slot?.data||emptyWorld());history=[];incomeBlocked=false;lastIncomeTime=performance.now();selectedCabin=null;selectedFreeform=null;inspectFreeform=false;setBuildingDetail(null);syncFreeformPanel();syncCabinPanel();levelTarget=null;
- resetPointerInteraction();updateUI();rebuild();recenter();
+ ({blocks,water,terrain,peak,buildings:cabins,economy,skills:skillProgress}=slot?.data||emptyWorld());history=[];incomeBlocked=false;selectedCabin=null;selectedFreeform=null;inspectFreeform=false;setBuildingDetail(null);syncFreeformPanel();syncCabinPanel();levelTarget=null;
+ $('#offline-notice').hidden=true;resetPointerInteraction();updateUI();rebuild();recenter();checkpointIncome();
 }
 function refreshVillages(){
  $('#village-message').textContent=villages.error?'Saved villages need recovery. Export the original save before making changes.':'';
@@ -1253,7 +1273,7 @@ function refreshVillages(){
  for(const slot of slots){
   const button=document.createElement('button');button.type='button';button.textContent=slot.name+(slot.conflict?' · Choose version':'');
   button.setAttribute('aria-pressed',String(slot.id===active?.id));button.disabled=!!villages.error;
-  button.onclick=()=>{try{if(!save())return;loadVillage(villages.select(slot.id));refreshVillages();}catch(error){villageMessage(error.message);}};
+  button.onclick=()=>{try{if(!checkpointIncome()||!save())return;loadVillage(villages.select(slot.id));refreshVillages();}catch(error){villageMessage(error.message);}};
   list.append(button);
  }
  $('#village-name').value=active?.name||'';
@@ -1272,14 +1292,14 @@ function downloadVillage(value,name){
 }
 $('#village-toggle').onclick=()=>{resetPointerInteraction();setAudioPanel(false);if(dock.dataset.open==='true')setDock(false);refreshVillages();$('#village-dialog').showModal();cloud?.flush();};
 $('#village-close').onclick=()=>$('#village-dialog').close();
-$('#village-create').onclick=()=>{try{if(!save())return;loadVillage(villages.create('New village'));cloud?.schedule();refreshVillages();}catch(error){villageMessage(error.message);}};
+$('#village-create').onclick=()=>{try{if(!checkpointIncome()||!save())return;loadVillage(villages.create('New village'));cloud?.schedule();refreshVillages();}catch(error){villageMessage(error.message);}};
 $('#village-rename').onclick=()=>{try{villages.rename(villages.active.id,$('#village-name').value);cloud?.schedule();refreshVillages();}catch(error){villageMessage(error.message);}};
-$('#village-export').onclick=()=>downloadVillage({version:2,name:villages.active?.name||'Recovered village',data:currentVillageData()},'stillwater-village.json');
+$('#village-export').onclick=()=>{checkpointIncome();downloadVillage({version:2,name:villages.active?.name||'Recovered village',data:currentVillageData()},'stillwater-village.json');};
 $('#village-recovery').onclick=()=>{const blob=new Blob([villages.recovery()],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='stillwater-original-save.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 $('#village-import').onclick=()=>$('#village-file').click();
 $('#village-file').onchange=async e=>{
  const file=e.target.files[0];e.target.value='';if(!file)return;
- try{if(file.size>2_000_000)throw new Error('Village file is too large.');const value=JSON.parse(await file.text());if(value.version!==2)throw new Error('Unsupported village file version.');if(!save())return;loadVillage(villages.create(value.name,value.data));cloud?.schedule();refreshVillages();}catch(error){villageMessage(error.message);}
+ try{if(file.size>2_000_000)throw new Error('Village file is too large.');const value=JSON.parse(await file.text());if(value.version!==2)throw new Error('Unsupported village file version.');if(!checkpointIncome()||!save())return;const imported=validateWorld(value.data);imported.economy.lastIncomeAt=Date.now();loadVillage(villages.create(value.name,imported));cloud?.schedule();refreshVillages();}catch(error){villageMessage(error.message);}
 };
 $('#village-delete').onclick=()=>{$('#village-delete-label').textContent=`Delete “${villages.active.name}” ${accountUser?'from your account and this device':'from this device'}? Export a copy first if you want to keep it.`;$('#village-delete-confirm').hidden=false;};
 $('#village-delete-cancel').onclick=()=>$('#village-delete-confirm').hidden=true;
@@ -1352,11 +1372,11 @@ addEventListener('focus',()=>cloud?.flush());
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)cloud?.flush();});
 
 function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);}addEventListener('resize',resize);resize();
-syncCabinPanel();updateUI();rebuild();
+syncCabinPanel();updateUI();rebuild();checkpointIncome();
 const incomeTimer=setInterval(incomeHeartbeat,1000);
 addEventListener('blur',checkpointIncome);addEventListener('pagehide',checkpointIncome);
-addEventListener('focus',()=>{lastIncomeTime=performance.now();});
-document.addEventListener('visibilitychange',()=>{lastIncomeTime=performance.now();if(document.hidden)checkpointIncome();});
+addEventListener('focus',checkpointIncome);addEventListener('pageshow',checkpointIncome);
+document.addEventListener('visibilitychange',checkpointIncome);
 document.addEventListener('pointerdown',e=>{if(!$('#appeal-details').contains(e.target))$('#appeal-details').open=false;});
 if(villages.error)notify('Saved villages need recovery. Open Villages to export a copy; the original save has not been replaced.');
 renderer.setAnimationLoop(t=>{
