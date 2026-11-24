@@ -218,10 +218,11 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
      const roll=new THREE.Mesh(new THREE.CylinderGeometry(.09,.09,.23,8),material(['#b8886b','#899d78','#d5c499'][i]));roll.rotation.x=Math.PI/2;roll.position.set(.55+i*.24,1.15,hi-.24);roll.castShadow=true;stock.add(roll);
      box(stock,.20,.27,.13,.55+i*.24,.68,hi-.24,i%2?'#73907b':'#a88c68');box(stock,.025,.23,.015,.55+i*.24,.68,hi-.165,frame);
     }
-    const clerestory=feature('shop-raised-roof-windows');const y=peak-.12;
-    box(clerestory,.53,.46,1.52,.5,y,.5,frame);
-    for(const x of [.225,.775])for(let i=0;i<4;i++)box(clerestory,.025,.25,.29,x,y,.0+i*.34,'#cfbc8b');
-    const cap=box(clerestory,.72,.09,1.70,.5,y+.25,.5,finish.color);cap.rotation.z=.07;
+    // A low shed dormer sits on the right roof slope, leaving the ridge uninterrupted.
+    const clerestory=feature('shop-raised-roof-windows');const y=peak-.42;
+    box(clerestory,.58,.54,1.12,1.0,y,.5,frame);
+    for(let i=0;i<4;i++)box(clerestory,.025,.27,.22,1.30,y+.025,.08+i*.28,'#a9c8c3');
+    const cap=box(clerestory,.66,.055,1.23,1.0,peak-.09,.5,finish.color);cap.rotation.z=-.15;
     beam(stock,[1.22,1.30,.91],[1.45,1.30,.91],.045,frame);
     box(stock,.045,.27,.25,1.44,1.12,.91,'#49644d');
    }
