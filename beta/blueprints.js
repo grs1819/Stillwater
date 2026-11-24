@@ -1,6 +1,7 @@
-import {initialSkills,normalizeSkills} from './skills.js';
+import {freeformLodges} from './freeform.js';
+import {initialSkills,normalizeSkills} from './skills.js?v=freeform-lodge-1';
 import {ECONOMY,initialEconomy,normalizeEconomy,validatePaidGold} from './economy.js';
-import {LIMIT,key,normalize} from './town.js';
+import {LIMIT,key,normalize} from './town.js?v=freeform-lodge-1';
 import {levelSite,terrainLevel} from './terrain.js';
 export const CABIN=Object.freeze({id:'timber-guest-cabin',version:1,design:'gable',width:2,depth:2,entrance:[0,2]});
 export const SHOP=Object.freeze({...CABIN,id:'supply-shop'});
@@ -64,6 +65,7 @@ export function validateWorld(value){
   const error=placementError(b,world);if(error)throw new Error(error);
   ids.add(b.id);world.buildings.push(b);
  }
+ for(const lodge of freeformLodges(world.blocks,world.water)){if(ids.has(lodge.id))throw new Error('Duplicate building identity.');ids.add(lodge.id);}
  world.skills=normalizeSkills(value.skills,world);
  return world;
 }
