@@ -8,7 +8,7 @@ clearInterval(incomeTimer);renderer.setAnimationLoop(null);
 window.wingUI={data:currentVillageData,undo,save,report:currentBusiness,select:()=>edit({position:[0,0,0],buildingId:cabins[0].id}),
 fixture:()=>{cabins=[buildingAt(CABIN.id,0,0)];blocks={};water={};terrain={};economy={...economy,gold:2000};skillProgress=emptyWorld().skills;history=[];selectedCabin=null;updateUI();rebuild();save();},
 block:blocked=>{blocks=blocked?{'0,0,-1':{type:'tree',wood:'oak',roof:'moss'}}:{};rebuild();updateUI();},
-preview:()=>({active:previewingWing,valid:!placementError(renovationDraft,currentVillageData()),visible:cabinGhost.group.visible})};`});});
+preview:()=>({active:!!extensionPreview,valid:!placementError(renovationDraft,currentVillageData()),visible:cabinGhost.group.visible})};`});});
  await page.goto(process.env.STILLWATER_URL||'http://localhost:5225');await page.waitForFunction(()=>window.wingUI);await page.evaluate(()=>{wingUI.fixture();wingUI.select();});
  const click=async id=>mobile?page.locator(id).tap():page.locator(id).click();await click('#business-toggle');await click('#wing-preview');assert.deepEqual(await page.evaluate(()=>wingUI.preview()),{active:true,valid:true,visible:true});assert.equal((await page.evaluate(()=>wingUI.data())).economy.gold,2000);await click('#wing-cancel');assert.equal((await page.evaluate(()=>wingUI.data())).buildings[0].gameplay.guestWing,undefined);
  await page.evaluate(()=>wingUI.block(true));await click('#wing-preview');assert.equal(await page.locator('#wing-confirm').isDisabled(),true);assert.equal((await page.evaluate(()=>wingUI.preview())).valid,false);await click('#wing-cancel');await page.evaluate(()=>wingUI.block(false));

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {EXTERIORS,FINISHES,DESIGNS,SHOP,CAFE} from './blueprints.js?v=guest-wing-1';
+import {EXTERIORS,FINISHES,DESIGNS,SHOP,CAFE} from './blueprints.js?v=cabin-additions-1';
 // Reuse the game's timber beams, cached materials, roofing finishes and details.
 export function createCabinView({box,beam,material,roofingMaterial,roofDetails},preview=false){
  const group=new THREE.Group(),cache=new Map();
@@ -23,8 +23,8 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
  function dispose(g){g.traverse(o=>{if(o.geometry)o.geometry.dispose();});}
  function cottagePeak(id){return id==='woodland'?2.48:id==='craftsman'?2.28:2.32;}
  function build(b){
-  const cafe=b.blueprint===CAFE.id,shop=cafe||b.blueprint===SHOP.id,level=b.gameplay.businessLevel||0,upgraded=level>0;
-  const g=new THREE.Group(),{wall}=EXTERIORS[b.appearance.exterior],frame=cafe?'#343e3b':EXTERIORS[b.appearance.exterior].frame,finish=FINISHES[b.appearance.roof],design=DESIGNS[b.design],peak=(cottagePeak(b.design))-(cafe?.18:0)+(level>=2?(shop?.12:.32):0)+(level===3?.12:0),cottage=b.design==='woodland',lodge=b.design==='craftsman',half=design.wallWidth/2,lo=.5-half,hi=.5+half,frontWall=hi-(upgraded&&!shop?.28:0),wallDepth=design.wallWidth-(upgraded&&!shop?.28:0);
+  const cafe=b.blueprint===CAFE.id,shop=cafe||b.blueprint===SHOP.id,level=b.gameplay.businessLevel||0,upgraded=level>0||!!b.gameplay.frontPorch;
+  const g=new THREE.Group(),{wall}=EXTERIORS[b.appearance.exterior],frame=cafe?'#343e3b':EXTERIORS[b.appearance.exterior].frame,finish=FINISHES[b.appearance.roof],design=DESIGNS[b.design],peak=(cottagePeak(b.design))-(cafe?.18:0)+((level>=2||b.gameplay.loft)?(shop?.12:.32):0)+(level===3?.12:0),cottage=b.design==='woodland',lodge=b.design==='craftsman',half=design.wallWidth/2,lo=.5-half,hi=.5+half,frontWall=hi-(upgraded&&!shop?.28:0),wallDepth=design.wallWidth-(upgraded&&!shop?.28:0);
   g.userData={blueprint:b.blueprint,design:b.design,appearance:{...b.appearance},businessLevel:level};
   box(g,1.94,.16,1.94,.5,.08,.5,'#aaa58d');
   if(shop){
@@ -176,17 +176,31 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
   }
   if(upgraded&&!shop){
    const porch=feature('cabin-comfort-porch');
+   if(!b.gameplay.frontPorch){
    box(porch,.75,.1,.75,0,.14,1.50,frame);
    box(porch,design.wallWidth,.08,.29,.5,.15,frontWall+.14,frame);
    for(const x of [-.3,.3]){box(porch,.085,1.16,.085,x,.76,1.77,frame);beam(porch,[x,1.04,1.77],[x*.3,1.37,1.77],.065,frame);}
    pitched(porch,0,1.38,1.6,.84,.61,.27);
+   }else{
+    box(porch,1.94,.10,1.21,.5,.15,1.84,frame);
+    for(let z=1.30;z<2.40;z+=.13)box(porch,1.88,.012,.012,.5,.207,z,'#b59b74');
+    for(const x of [-.36,1.36]){box(porch,.085,1.10,.085,x,.75,2.30,frame);beam(porch,[x,.95,2.30],[x+(x<0?.18:-.18),1.25,2.30],.055,frame);}
+    const v=[-.47,1.53,1.16,1.47,1.53,1.16,1.47,1.28,2.43,-.47,1.53,1.16,1.47,1.28,2.43,-.47,1.28,2.43];
+    for(let i=0;i<v.length;i+=9){const t=v.slice(i+3,i+6);v.splice(i+3,3,...v.slice(i+6,i+9));v.splice(i+6,3,...t);}
+    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(v,3));geo.computeVertexNormals();const canopy=new THREE.Mesh(geo,roofingMaterial(finish.color,finish.tier));canopy.castShadow=true;canopy.receiveShadow=true;porch.add(canopy);
+    if(finish.tier==='estate')for(let x=-.30;x<1.40;x+=.32)beam(porch,[x,1.54,1.17],[x,1.29,2.42],.012,finish.color);
+    box(porch,1.94,.065,.055,.5,1.28,2.43,frame);
+    for(const x of [-.45,1.45])beam(porch,[x,1.53,1.17],[x,1.28,2.42],.045,frame);
+    for(const x of [.62,.94,1.26])box(porch,.035,.32,.04,x,.39,2.37,frame);box(porch,.77,.045,.06,.94,.56,2.37,frame);
+    box(porch,.64,.10,.20,0,.05,2.36,'#aaa58d');
+   }
    for(const x of [-.32,.32]){box(porch,.105,.17,.1,x,1.09,hi+.08,'#efc77f');box(porch,.14,.035,.13,x,1.19,hi+.08,frame);}
    planter(porch,.94,.57,frontWall+.09);
    const bench=feature('cabin-porch-bench');
    box(bench,.46,.07,.22,.92,.38,1.30,frame);box(bench,.46,.18,.05,.92,.52,1.24,wall);
    for(const x of [.76,1.08])box(bench,.055,.24,.16,x,.23,1.30,frame);
   }
-  if(level>=2&&!shop){
+  if((level>=2||b.gameplay.loft)&&!shop){
    const loft=feature('cabin-twin-dormers');
    // Two side-facing dormers rise out of the roof, with real projecting cheeks.
    for(const z of [.02,.98]){
@@ -323,7 +337,7 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
  }
  return {group,setHidden(id){hiddenId=id;for(const [key,entry]of cache)entry.mesh.visible=key!==id;},setValid(next){valid=next;if(preview){for(const [source,copy]of previewMaterials){copy.color.copy(source.color);if(!valid)copy.color.lerp(new THREE.Color('#d78469'),.7);}outlineMaterial.color.set(valid?'#507e57':'#b95c48');}},update(buildings,height){
   const ids=new Set(buildings.map(b=>b.id));for(const [id,entry]of cache)if(!ids.has(id)){group.remove(entry.mesh);dispose(entry.mesh);cache.delete(id);}
-  for(const b of buildings){const signature=JSON.stringify([b.blueprint,b.definitionVersion,b.design,b.appearance,b.gameplay.businessLevel||0,!!b.gameplay.guestWing]);let entry=cache.get(b.id);if(entry?.signature!==signature){if(entry){group.remove(entry.mesh);dispose(entry.mesh);}entry={signature,mesh:build(b)};cache.set(b.id,entry);group.add(entry.mesh);}
+  for(const b of buildings){const signature=JSON.stringify([b.blueprint,b.definitionVersion,b.design,b.appearance,b.gameplay.businessLevel||0,!!b.gameplay.guestWing,!!b.gameplay.frontPorch,!!b.gameplay.loft]);let entry=cache.get(b.id);if(entry?.signature!==signature){if(entry){group.remove(entry.mesh);dispose(entry.mesh);}entry={signature,mesh:build(b)};cache.set(b.id,entry);group.add(entry.mesh);}
    entry.mesh.visible=b.id!==hiddenId;entry.mesh.position.set(b.position[0],height(...b.position),b.position[1]);entry.mesh.rotation.y=b.rotation*Math.PI/2;
   }
   group.updateMatrixWorld(true);const targets=[];group.traverse(o=>{if(o.isMesh)targets.push(o);});return targets;
