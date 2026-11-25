@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {EXTERIORS,FINISHES,DESIGNS,SHOP,CAFE} from './blueprints.js?v=cabin-additions-1';
+import {EXTERIORS,FINISHES,DESIGNS,SHOP,CAFE} from './blueprints.js?v=retreat-expansion-1';
 // Reuse the game's timber beams, cached materials, roofing finishes and details.
 export function createCabinView({box,beam,material,roofingMaterial,roofDetails},preview=false){
  const group=new THREE.Group(),cache=new Map();
@@ -23,7 +23,7 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
  function dispose(g){g.traverse(o=>{if(o.geometry)o.geometry.dispose();});}
  function cottagePeak(id){return id==='woodland'?2.48:id==='craftsman'?2.28:2.32;}
  function build(b){
-  const cafe=b.blueprint===CAFE.id,shop=cafe||b.blueprint===SHOP.id,level=b.gameplay.businessLevel||0,upgraded=level>0||!!b.gameplay.frontPorch;
+  const cafe=b.blueprint===CAFE.id,shop=cafe||b.blueprint===SHOP.id,level=b.gameplay.businessLevel||0,suite=level===3||!!b.gameplay.premiumSuite,story=b.gameplay.secondStory?1.15:0,upgraded=level>0||!!b.gameplay.frontPorch||suite;
   const g=new THREE.Group(),{wall}=EXTERIORS[b.appearance.exterior],frame=cafe?'#343e3b':EXTERIORS[b.appearance.exterior].frame,finish=FINISHES[b.appearance.roof],design=DESIGNS[b.design],peak=(cottagePeak(b.design))-(cafe?.18:0)+((level>=2||b.gameplay.loft)?(shop?.12:.56):0)+(level===3?.12:0),cottage=b.design==='woodland',lodge=b.design==='craftsman',half=design.wallWidth/2,lo=.5-half,hi=.5+half,frontWall=hi-(upgraded&&!shop?.28:0),wallDepth=design.wallWidth-(upgraded&&!shop?.28:0);
   g.userData={blueprint:b.blueprint,design:b.design,appearance:{...b.appearance},businessLevel:level};
   box(g,1.94,.16,1.94,.5,.08,.5,'#aaa58d');
@@ -40,7 +40,7 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
   for(const x of [lo+.03,hi-.03])for(const z of [lo+.03,hi-.03])box(g,cafe?.075:.12,1.5,cafe?.075:.12,x,.88,z,frame);
   for(const z of [lo-.02,hi+.02]){
    box(g,design.wallWidth+.1,.12,.12,.5,1.5,z,frame);
-   if(!cafe&&!(level===3&&z>0))beam(g,[.5,1.5,z],[.5,peak-.07,z],.065,frame);
+   if(!cafe&&!(suite&&z>0)&&!story)beam(g,[.5,1.5,z],[.5,peak-.07,z],.065,frame);
    if(!cafe)for(const x of [lo+.03,hi-.03])beam(g,[x,1.23,z],[x+(x<.5?.20:-.20),1.48,z],.055,frame);
   }
   // Subtle board joints instead of heavy dark ladder-like battens.
@@ -52,10 +52,11 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
   box(g,.045,.045,.035,.11,.66,frontWall+.11,'#e8c16e');}
   box(g,.68,.1,.3,0,.05,1.62,'#aaa58d');
   for(const [x,z,side]of (shop?[]:[[.94,frontWall+.025,false],[lo-.025,.5,true],[hi+.025,.5,true]])){
-   box(g,side?.065:(lodge?.72:.57),lodge?.82:.65,side?(lodge?.96:.57):.065,x,.95,z,frame);
-   box(g,side?.08:(lodge?.58:.43),lodge?.67:.5,side?(lodge?.82:.43):.08,x,.95,z,'#b9bd9f');
-   box(g,side?.09:.035,lodge?.67:.5,side?.035:.09,x,.95,z,wall);
+   box(g,side?.065:(lodge?.72:suite?.67:.57),lodge?.82:suite?.76:.65,side?(lodge?.96:suite?.73:.57):.065,x,.95,z,frame);
+   box(g,side?.08:(lodge?.58:suite?.53:.43),lodge?.67:suite?.61:.5,side?(lodge?.82:suite?.59:.43):.08,x,.95,z,'#b9bd9f');
+   box(g,side?.09:.035,lodge?.67:suite?.61:.5,side?.035:.09,x,.95,z,wall);
   }
+  const roofStart=g.children.length;
   const left=-design.eave,right=1+design.eave,back=-.49,front=1.49;
   const vertices=[left,1.48,back,.5,peak,back,.5,peak,front, left,1.48,back,.5,peak,front,left,1.48,front, .5,peak,back,right,1.48,back,right,1.48,front, .5,peak,back,right,1.48,front,.5,peak,front];
   // Upward winding lets the existing moss/seam detail generator follow each roof face.
@@ -73,9 +74,10 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
    beam(g,[.5,peak+.018,z],[right-.03,1.50,z],finish.tier==='estate'?.013:.008,roofTint);
   }
   // Solid gables behind the visible trusses.
-  for(const z of [lo,hi-(!shop&&level===3?.24:0)]){
+  for(const z of [lo,hi-(!shop&&suite?.24:0)]){
    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute([lo,1.49,z,hi,1.49,z,.5,peak-.09,z, .5,peak-.09,z,hi,1.49,z,lo,1.49,z],3));geo.computeVertexNormals();g.add(new THREE.Mesh(geo,material(wall)));
   }
+  const upperRoof=g.children.slice(roofStart);
   if(cottage&&!shop&&!upgraded){
    // All flower boxes remain inside the common footprint; the porch uses the reserved entrance.
    box(g,.58,.13,.13,.94,.57,hi+.045,frame);
@@ -87,12 +89,12 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
    const canopy=box(g,.77,.08,.48,0,1.32,1.64,finish.color);canopy.rotation.x=.13;
 
   }
-  if(lodge&&!shop&&level<3){
+  if(lodge&&!shop&&!suite){
    for(const z of [lo-.045,hi+.045]){box(g,design.wallWidth+.12,.09,.07,.5,.22,z,'#e4d6b5');box(g,design.wallWidth+.12,.09,.07,.5,1.38,z,'#e4d6b5');}
    for(const x of [lo-.02,hi+.02])for(const z of [lo+.16,hi-.16])beam(g,[x,1.12,z],[x+(x<.5?-.11:.11),1.48,z],.08,frame);
-   box(g,.34,2.16,.32,1.09,1.08,-.05,'#969487');
+   box(g,.34,2.16+story,.32,1.09,(2.16+story)/2,-.05,'#969487');
    for(let i=0;i<12;i++)box(g,.35,.025,.33,1.09,.14+i*.17,-.05,'#777d72');
-   box(g,.44,.12,.42,1.09,2.21,-.05,'#747b72');
+   box(g,.44,.12,.42,1.09,2.21+story,-.05,'#747b72');
   }
   if(shop){
    const frontZ=hi-.05,windowLeft=.32,windowRight=hi-.08,windowWidth=windowRight-windowLeft,windowX=(windowRight+windowLeft)/2;
@@ -165,7 +167,7 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
    box(wing,width,1.12,depth,.5,.72,cz,wall);
    for(const x of [.5-width/2+.03,.5+width/2-.03])box(wing,.075,1.25,.075,x,.77,back+.035,frame);
    for(let y=.29;y<1.25;y+=.17)box(wing,width-.10,.012,.012,.5,y,back-.008,boardTint);
-   box(wing,.70,.58,.05,.5,.82,back-.025,frame);box(wing,.58,.46,.025,.5,.82,back-.055,'#b9bd9f');box(wing,.03,.46,.035,.5,.82,back-.075,frame);
+   if(!b.gameplay.rearTerrace){box(wing,.70,.58,.05,.5,.82,back-.025,frame);box(wing,.58,.46,.025,.5,.82,back-.055,'#b9bd9f');box(wing,.03,.46,.035,.5,.82,back-.075,frame);}
    for(const x of [.5-width/2-.015,.5+width/2+.015]){box(wing,.035,.53,.48,x,.82,cz,frame);box(wing,.045,.41,.36,x,.82,cz,'#b9bd9f');}
    // A lower gable overlaps the original rear wall beneath its roof, forming a joined wing.
    const rise=cottage?.63:.49;
@@ -215,7 +217,7 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
     beam(d,[-.26,y+.24,.25],[0,y+.44,.25],.045,frame);beam(d,[0,y+.44,.25],[.26,y+.24,.25],.045,frame);
    }
    box(loft,design.wallWidth,.10,.07,.5,1.59,hi+.035,frame);
-   const glazing=feature('cabin-loft-front-glazing'),base=1.72,top=peak-.22,w=design.wallWidth*.36,z=hi-(level===3?.21:-.016);
+   const glazing=feature('cabin-loft-front-glazing'),base=1.72,top=peak-.22,w=design.wallWidth*.36,z=hi-(suite?.21:-.016);
    // Broad A-frame glazing is visible above the porch; premium balconies stay in front.
    const vertices=[.5-w,base,z,.5+w,base,z,.5,top,z,.5,top,z,.5+w,base,z,.5-w,base,z];
    const pane=new THREE.BufferGeometry();pane.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));pane.computeVertexNormals();glazing.add(new THREE.Mesh(pane,material('#afc8bd')));
@@ -225,7 +227,7 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
    const railY=base+(top-base)*.39;box(glazing,w*1.22,.035,.04,.5,railY,z+.025,frame);
 
   }
-  if(level===3&&!shop){
+  if(suite&&!shop){
    const retreat=feature('cabin-premium-balcony');
    // Recessed dark glazing reads as a sheltered loft; outer beams remain prominent.
    box(retreat,.94,.075,.24,.5,1.79,1.30,frame);
@@ -234,9 +236,9 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
    planter(retreat,.15,1.91,1.37,.18);planter(retreat,.85,1.91,1.37,.18);
    const stone=feature('cabin-premium-stone');
    for(const z of [lo-.02,hi+.02])for(let i=0;i<7;i++)box(stone,design.wallWidth/7-.018,.16,.07,lo+(i+.5)*design.wallWidth/7,.22,z,i%2?'#9a9c8b':'#afb09b');
-   box(stone,.29,peak+.20,.29,lo+.23,(peak+.20)/2,lo+.25,'#9b9c8c');
-   for(let y=.25;y<peak+.20;y+=.23)box(stone,.30,.025,.30,lo+.23,y,lo+.25,'#797f73');
-   box(stone,.40,.10,.4,lo+.23,peak+.26,lo+.25,'#71796e');
+   box(stone,.29,peak+.20+story,.29,lo+.23,(peak+.20+story)/2,lo+.25,'#9b9c8c');
+   for(let y=.25;y<peak+.20+story;y+=.23)box(stone,.30,.025,.30,lo+.23,y,lo+.25,'#797f73');
+   box(stone,.40,.10,.4,lo+.23,peak+.26+story,lo+.25,'#71796e');
   }
   if(upgraded&&shop){
    const displays=feature('shop-outdoor-displays');
@@ -314,6 +316,40 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
    box(tea,.16,.14,.035,.5,1.85,hi+.06,'#f2dfb6');box(tea,.18,.025,.04,.5,1.93,hi+.06,'#f2dfb6');
    const handle=new THREE.Mesh(new THREE.TorusGeometry(.055,.018,5,10),material('#f2dfb6'));handle.position.set(.62,1.85,hi+.065);handle.castShadow=true;tea.add(handle);
   }
+  if(story&&!shop){
+   for(const part of upperRoof)part.position.y+=story;
+   for(const part of tierParts)if(['cabin-twin-dormers','cabin-loft-front-glazing','cabin-premium-balcony'].includes(part.name))part.position.y+=story;
+   const floor=feature('cabin-second-story');
+   box(floor,design.wallWidth,story,wallDepth,.5,1.48+story/2,.5-(upgraded?.14:0),wall);
+   box(floor,design.wallWidth+.04,.08,wallDepth+.04,.5,1.51,.5-(upgraded?.14:0),frame);
+   for(const x of [lo+.035,hi-.035])for(const z of [lo+.035,frontWall-.035])box(floor,.08,story,.08,x,1.48+story/2,z,frame);
+   for(const z of [lo-.015,frontWall+.015])for(const x of [.03,.96]){
+    box(floor,.49,.61,.045,x,2.03,z,frame);box(floor,.39,.49,.055,x,2.03,z,'#b5c7ba');box(floor,.025,.50,.065,x,2.03,z,frame);
+   }
+   for(let x=lo+.15;x<hi-.08;x+=.16)for(const z of [lo-.008,frontWall+.008])box(floor,.012,story-.12,.012,x,1.48+story/2,z,boardTint);
+   for(let z=lo+.15;z<frontWall-.08;z+=.16)for(const x of [lo-.008,hi+.008])box(floor,.012,story-.12,.012,x,1.48+story/2,z,boardTint);
+   for(const z of [lo-.03,frontWall+.03]){box(floor,design.wallWidth,.075,.07,.5,1.48+story-.04,z,frame);for(const x of [lo+.04,hi-.04])beam(floor,[x,1.48+story-.30,z],[x+(x<.5?.20:-.20),1.48+story-.08,z],.045,frame);}
+   beam(floor,[.5,1.5+story,lo-.02],[.5,peak+story-.09,lo-.02],.055,frame);
+   for(const x of [lo-.02,hi+.02]){box(floor,.045,.61,.66,x,2.03,.40,frame);box(floor,.055,.49,.54,x,2.03,.40,'#b5c7ba');box(floor,.065,.50,.025,x,2.03,.40,frame);}
+  }
+  if(b.gameplay.rearTerrace&&!shop){
+   const terrace=feature('cabin-rear-terrace'),rear=b.gameplay.guestWing?-2:-1,back=b.gameplay.guestWing?-1.40:lo;
+   // Door opens onto an uncovered stone landing, clear of the fire and seating.
+   const door=feature('cabin-rear-door');
+   box(door,.52,.99,.06,0,.65,back-.035,frame);box(door,.39,.85,.035,0,.65,back-.077,wall);box(door,.25,.29,.04,0,.87,back-.10,'#b5c7ba');box(door,.04,.04,.04,.12,.60,back-.105,'#ddc184');
+   box(terrace,1.94,.12,1.94,.5,.08,rear-.5,'#aaa998');
+   for(const x of [.02,.98])for(const z of [rear+.02,rear-.98])box(terrace,.89,.014,.89,x,.148,z,'#b8b6a2');
+   box(terrace,.57,.12,.30,0,.16,back-.13,'#a29f8c');
+   const fireX=.75,fireZ=rear-.65;
+   const ring=new THREE.Mesh(new THREE.TorusGeometry(.21,.055,5,12),material('#858879'));ring.rotation.x=Math.PI/2;ring.position.set(fireX,.21,fireZ);terrace.add(ring);
+   for(const dx of [-.07,.07]){const log=box(terrace,.08,.07,.26,fireX+dx,.19,fireZ,'#67523d');log.rotation.y=dx<0?.5:-.5;}
+   const flame=new THREE.Mesh(new THREE.ConeGeometry(.075,.20,5),material('#e5ac60'));flame.position.set(fireX,.30,fireZ);terrace.add(flame);
+   for(const [x,z,angle]of [[.15,fireZ,-Math.PI/2],[1.30,fireZ,Math.PI/2],[fireX,rear+.04,0]]){
+    const chair=new THREE.Group();chair.position.set(x,.15,z);chair.rotation.y=angle;terrace.add(chair);
+    box(chair,.25,.04,.25,0,.20,0,frame);box(chair,.25,.30,.04,0,.36,.12,wall);
+    for(const dx of [-.09,.09])for(const dz of [-.09,.09])box(chair,.035,.19,.035,dx,.095,dz,frame);
+   }
+  }
   // Batch new static details by material so flowers, rails and stock do not each
   // add a draw call. Run only on model rebuild; keep named feature groups intact.
   for(const part of tierParts){
@@ -342,7 +378,7 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
  }
  return {group,setHidden(id){hiddenId=id;for(const [key,entry]of cache)entry.mesh.visible=key!==id;},setValid(next){valid=next;if(preview){for(const [source,copy]of previewMaterials){copy.color.copy(source.color);if(!valid)copy.color.lerp(new THREE.Color('#d78469'),.7);}outlineMaterial.color.set(valid?'#507e57':'#b95c48');}},update(buildings,height){
   const ids=new Set(buildings.map(b=>b.id));for(const [id,entry]of cache)if(!ids.has(id)){group.remove(entry.mesh);dispose(entry.mesh);cache.delete(id);}
-  for(const b of buildings){const signature=JSON.stringify([b.blueprint,b.definitionVersion,b.design,b.appearance,b.gameplay.businessLevel||0,!!b.gameplay.guestWing,!!b.gameplay.frontPorch,!!b.gameplay.loft]);let entry=cache.get(b.id);if(entry?.signature!==signature){if(entry){group.remove(entry.mesh);dispose(entry.mesh);}entry={signature,mesh:build(b)};cache.set(b.id,entry);group.add(entry.mesh);}
+  for(const b of buildings){const signature=JSON.stringify([b.blueprint,b.definitionVersion,b.design,b.appearance,b.gameplay.businessLevel||0,!!b.gameplay.guestWing,!!b.gameplay.frontPorch,!!b.gameplay.loft,!!b.gameplay.secondStory,!!b.gameplay.premiumSuite,!!b.gameplay.rearTerrace]);let entry=cache.get(b.id);if(entry?.signature!==signature){if(entry){group.remove(entry.mesh);dispose(entry.mesh);}entry={signature,mesh:build(b)};cache.set(b.id,entry);group.add(entry.mesh);}
    entry.mesh.visible=b.id!==hiddenId;entry.mesh.position.set(b.position[0],height(...b.position),b.position[1]);entry.mesh.rotation.y=b.rotation*Math.PI/2;
   }
   group.updateMatrixWorld(true);const targets=[];group.traverse(o=>{if(o.isMesh)targets.push(o);});return targets;

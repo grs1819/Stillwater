@@ -1,10 +1,10 @@
 import {LODGE_COST,freeformLodges,selectedLodge,lodgeOpeningError,openLodge,reconcileLodges,setLodgeLevel} from './freeform.js';
-import {developmentXP,hospitalityXP,levelGains,unlocked,skillLevel} from './skills.js?v=cabin-additions-1';
+import {developmentXP,hospitalityXP,levelGains,unlocked,skillLevel} from './skills.js?v=retreat-expansion-1';
 import {createSkillsView} from './skills-view.js';
-import {businessSummary,upgradeQuote,upgradeBusiness,upgradeError,businessTier,settleIncome} from './businesses.js?v=cabin-additions-1';
+import {businessSummary,upgradeQuote,upgradeBusiness,upgradeError,businessTier,settleIncome} from './businesses.js?v=retreat-expansion-1';
 import {ECONOMY,transactGold,removalRefund,renovationCost,advanceIncome} from './economy.js';
-import {renovateCabin,emptyWorld,validateWorld,buildingAt,BLUEPRINTS,CABIN,GUEST_WING,withGuestWing,additionQuote,withCabinAddition,SHOP,CAFE,placementError,cabinOccupancy,navigationBlocks,footprint} from './blueprints.js?v=cabin-additions-1';
-import {createCabinView} from './cabin-view.js?v=loft-gable-1';
+import {renovateCabin,emptyWorld,validateWorld,buildingAt,BLUEPRINTS,CABIN,GUEST_WING,withGuestWing,additionQuote,withCabinAddition,SHOP,CAFE,placementError,cabinOccupancy,navigationBlocks,footprint,localCell} from './blueprints.js?v=retreat-expansion-1';
+import {createCabinView} from './cabin-view.js?v=retreat-expansion-1';
 import {createAccounts} from './accounts.js';
 import {createCloudSync,supabaseRemote} from './cloud-sync.js';
 import {createVillageStore} from './village-store.js';
@@ -162,15 +162,15 @@ function updateEconomyUI(){
  const eligible=original?.blueprint===CABIN.id;
  $('#wing-controls').hidden=!eligible;
  if(eligible){
-  for(const [kind,id]of [['guestWing','wing-preview'],['frontPorch','porch-preview'],['loft','loft-preview']]){
-   const quote=additionQuote(original,kind),button=$('#'+id);button.hidden=quote.installed||!!extensionPreview;button.disabled=!!renovationDraft;
+  for(const [kind,id]of [['guestWing','wing-preview'],['frontPorch','porch-preview'],['loft','loft-preview'],['secondStory','story-preview'],['premiumSuite','suite-preview'],['rearTerrace','terrace-preview']]){
+   const quote=additionQuote(original,kind),button=$('#'+id);button.hidden=quote.installed||!!extensionPreview;button.disabled=!!renovationDraft||!!quote.reason;button.title=quote.reason||'';
    button.textContent=`Preview ${quote.name.toLowerCase()} · ${quote.cost?quote.cost+' Gold':'Included'}`;
   }
   const quote=extensionPreview?additionQuote(original,extensionPreview):null;
   const blocked=quote?(placementError(withCabinAddition(original,extensionPreview),currentVillageData())|| (skillLevel(skillProgress.xp.hospitality)<quote.hospitality?`Requires Hospitality level ${quote.hospitality}.`:null)||fundsError(quote.cost)):null;
   $('#wing-confirm').hidden=!extensionPreview;$('#wing-cancel').hidden=!extensionPreview;$('#wing-confirm').disabled=!!blocked;
   $('#wing-confirm').textContent=quote?`Build · ${quote.cost?quote.cost+' Gold':'Included'}`:'Build';
-  $('#wing-status').textContent=blocked|| (quote?`${quote.name} preview · confirm to keep.`:`${original.gameplay.guestWing?'Guest wing installed · ':''}${original.gameplay.frontPorch?'Full porch installed · ':''}${additionQuote(original,'loft').installed?'Loft converted · ':''}Prior tier purchases are credited. Porch improves guest appeal; loft adds two beds. Demand still applies.`);
+  $('#wing-status').textContent=blocked|| (quote?`${quote.name} preview · ${extensionPreview==='secondStory'?'Loft credit included where applicable; +2 beds beyond the loft.':extensionPreview==='premiumSuite'?'Premium earnings per occupied bed.':extensionPreview==='rearTerrace'?'Uncovered fire pit and seating; improves guest appeal.':extensionPreview==='guestWing'&&original.gameplay.rearTerrace?'The existing terrace moves behind the new wing.':''} Confirm to keep.`:`${original.gameplay.guestWing?'Guest wing installed · ':''}${original.gameplay.frontPorch?'Full porch installed · ':''}${additionQuote(original,'loft').installed?'Loft converted · ':''}${original.gameplay.secondStory?'Second story installed · ':''}${additionQuote(original,'premiumSuite').installed?'Premium suite included · ':''}${original.gameplay.rearTerrace?'Rear terrace installed · ':''}Prior purchases are credited. Suite requires a loft. Demand still applies.`);
 
  }
  if(pendingCabin)showCabinGhost(pendingCabin);
@@ -906,7 +906,7 @@ function rebuild(){
   const cabinTargets=cabinView.update(cabins,(x,z)=>terrainHeight(terrain,x,z));
   pickTargets=[...cabinTargets,...targets,...clearing.children,ground];
   buildings.updateMatrixWorld(true);clearing.updateMatrixWorld(true);
-  sound.setWorld([...Object.entries(water).map(([k,kind])=>{const [x,z]=k.split(',').map(Number);return {x,y:0,z,kind};}),...Object.entries(blocks).filter(([,b])=>b.type==='campProp'&&b.kind==='fire').map(([k])=>{const [x,y,z]=k.split(',').map(Number);return {x,y:y+terrainHeight(terrain,x,z),z,kind:'fire'};})]);
+  sound.setWorld([...cabins.filter(b=>b.gameplay.rearTerrace).map(b=>{const [x,z]=localCell(b,.75,(b.gameplay.guestWing?-2:-1)-.65);return {x,y:terrainHeight(terrain,...b.position)+.25,z,kind:'fire'};}),...Object.entries(water).map(([k,kind])=>{const [x,z]=k.split(',').map(Number);return {x,y:0,z,kind};}),...Object.entries(blocks).filter(([,b])=>b.type==='campProp'&&b.kind==='fire').map(([k])=>{const [x,y,z]=k.split(',').map(Number);return {x,y:y+terrainHeight(terrain,x,z),z,kind:'fire'};})]);
   villagers.rebuild(navigationBlocks(blocks,cabins),water,peak>=3,terrain);
 }
 function commit(next,nextWater=water,nextTerrain=terrain,nextCabins=cabins,goldDelta=0){
@@ -1317,7 +1317,7 @@ function previewAddition(kind){
  const draft=withCabinAddition(b,kind),error=placementError(draft,currentVillageData());
  extensionPreview=kind;renovationDraft=draft;cabinView.setHidden(b.id);cabinGhost.update([draft],(x,z)=>terrainHeight(terrain,x,z));cabinGhost.setValid(!error);cabinGhost.group.visible=true;showCabinFootprint(draft,error?'#d78469':'#91ba8a');renderer.shadowMap.needsUpdate=true;syncCabinPanel();
 }
-$('#wing-preview').onclick=()=>previewAddition('guestWing');$('#porch-preview').onclick=()=>previewAddition('frontPorch');$('#loft-preview').onclick=()=>previewAddition('loft');
+$('#wing-preview').onclick=()=>previewAddition('guestWing');$('#porch-preview').onclick=()=>previewAddition('frontPorch');$('#loft-preview').onclick=()=>previewAddition('loft');$('#story-preview').onclick=()=>previewAddition('secondStory');$('#suite-preview').onclick=()=>previewAddition('premiumSuite');$('#terrace-preview').onclick=()=>previewAddition('rearTerrace');
 $('#wing-cancel').onclick=()=>cancelRenovation();
 $('#wing-confirm').onclick=()=>{
  if(!extensionPreview)return;const original=cabins.find(b=>b.id===selectedCabin);if(!original)return;
