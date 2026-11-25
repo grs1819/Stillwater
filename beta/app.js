@@ -1,10 +1,10 @@
 import {LODGE_COST,freeformLodges,selectedLodge,lodgeOpeningError,openLodge,reconcileLodges,setLodgeLevel} from './freeform.js';
-import {developmentXP,hospitalityXP,levelGains,unlocked} from './skills.js?v=guest-wing-1';
+import {developmentXP,hospitalityXP,levelGains,unlocked,skillLevel} from './skills.js?v=cabin-additions-1';
 import {createSkillsView} from './skills-view.js';
-import {businessSummary,upgradeQuote,upgradeBusiness,upgradeError,businessTier,settleIncome} from './businesses.js?v=guest-wing-1';
+import {businessSummary,upgradeQuote,upgradeBusiness,upgradeError,businessTier,settleIncome} from './businesses.js?v=cabin-additions-1';
 import {ECONOMY,transactGold,removalRefund,renovationCost,advanceIncome} from './economy.js';
-import {renovateCabin,emptyWorld,validateWorld,buildingAt,BLUEPRINTS,CABIN,GUEST_WING,withGuestWing,SHOP,CAFE,placementError,cabinOccupancy,navigationBlocks,footprint} from './blueprints.js?v=guest-wing-1';
-import {createCabinView} from './cabin-view.js?v=guest-wing-1';
+import {renovateCabin,emptyWorld,validateWorld,buildingAt,BLUEPRINTS,CABIN,GUEST_WING,withGuestWing,additionQuote,withCabinAddition,SHOP,CAFE,placementError,cabinOccupancy,navigationBlocks,footprint} from './blueprints.js?v=cabin-additions-1';
+import {createCabinView} from './cabin-view.js?v=cabin-additions-1';
 import {createAccounts} from './accounts.js';
 import {createCloudSync,supabaseRemote} from './cloud-sync.js';
 import {createVillageStore} from './village-store.js';
@@ -117,7 +117,7 @@ let water=state.water,terrain=state.terrain||{},levelTarget=null;
 const waterView=createWaterView(scene,material,box);
 const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
 let waterAnalysis;
-let cabins=state.buildings,selectedCabin=null,selectedFreeform=null,inspectFreeform=false,cabinRotation=0,pendingCabin=null,renovationDraft=null,previewingWing=false;
+let cabins=state.buildings,selectedCabin=null,selectedFreeform=null,inspectFreeform=false,cabinRotation=0,pendingCabin=null,renovationDraft=null,extensionPreview=null;
 let blocks=state.blocks,peak=state.peak,history=[],tool='house',pointerDown=null,hoverHit=null;
 const buildings=new THREE.Group();scene.add(buildings);
 const villagers=createVillagers(scene,material);
@@ -142,7 +142,7 @@ function updateEconomyUI(){
  $('#appeal-summary').textContent=`Appeal ${appeal.score} · +${income*60000/ECONOMY.intervalMs}/min`;
  $('#appeal-breakdown').replaceChildren(...Object.entries(appeal.parts).map(([label,value])=>{const row=document.createElement('div');row.textContent=`${label}: ${value}`;return row;}));
  $('#business-overview').textContent=`${report.guests} guests staying · demand for ${report.demand}. Baseline: +${report.baseline*perMinute} Gold/min; businesses: +${(income-report.baseline)*perMinute} Gold/min.`;
- const original=cabins.find(b=>b.id===selectedCabin)||selectedLodge(blocks,selectedFreeform,water),cost=original&&renovationDraft?(previewingWing?GUEST_WING.cost:renovationCost(original,renovationDraft)):0,definition=BLUEPRINTS[original?.blueprint]||BLUEPRINTS[placementBlueprint()];
+ const original=cabins.find(b=>b.id===selectedCabin)||selectedLodge(blocks,selectedFreeform,water),cost=original&&renovationDraft?(extensionPreview?additionQuote(original,extensionPreview).cost:renovationCost(original,renovationDraft)):0,definition=BLUEPRINTS[original?.blueprint]||BLUEPRINTS[placementBlueprint()];
  $('#cabin-price').textContent=original?`Design change: ${ECONOMY.renovationCost} Gold`:`${definition.cost} Gold · 2 × 2`;
  $('#renovation-confirm').textContent=cost?`Confirm · ${cost} Gold`:'Confirm · Free';$('#renovation-confirm').disabled=!renovationDraft||!!fundsError(cost);
  $('#renovation-funds').textContent=renovationDraft?(fundsError(cost)||''):'';
@@ -162,11 +162,16 @@ function updateEconomyUI(){
  const eligible=original?.blueprint===CABIN.id;
  $('#wing-controls').hidden=!eligible;
  if(eligible){
-  const installed=!!original.gameplay.guestWing,blocked=installed?null:placementError(withGuestWing(original),currentVillageData());
-  $('#wing-preview').hidden=installed||previewingWing;$('#wing-preview').disabled=!!renovationDraft;
-  $('#wing-confirm').hidden=!previewingWing;$('#wing-cancel').hidden=!previewingWing;
-  $('#wing-confirm').disabled=!!blocked||!!fundsError(GUEST_WING.cost);
-  $('#wing-status').textContent=installed?'Guest wing installed · +2 beds.':blocked||fundsError(GUEST_WING.cost)||'Rear wing · 2 extra tiles · +2 beds. Guest demand still applies.';
+  for(const [kind,id]of [['guestWing','wing-preview'],['frontPorch','porch-preview'],['loft','loft-preview']]){
+   const quote=additionQuote(original,kind),button=$('#'+id);button.hidden=quote.installed||!!extensionPreview;button.disabled=!!renovationDraft;
+   button.textContent=`Preview ${quote.name.toLowerCase()} · ${quote.cost?quote.cost+' Gold':'Included'}`;
+  }
+  const quote=extensionPreview?additionQuote(original,extensionPreview):null;
+  const blocked=quote?(placementError(withCabinAddition(original,extensionPreview),currentVillageData())|| (skillLevel(skillProgress.xp.hospitality)<quote.hospitality?`Requires Hospitality level ${quote.hospitality}.`:null)||fundsError(quote.cost)):null;
+  $('#wing-confirm').hidden=!extensionPreview;$('#wing-cancel').hidden=!extensionPreview;$('#wing-confirm').disabled=!!blocked;
+  $('#wing-confirm').textContent=quote?`Build · ${quote.cost?quote.cost+' Gold':'Included'}`:'Build';
+  $('#wing-status').textContent=blocked|| (quote?`${quote.name} preview · confirm to keep.`:`${original.gameplay.guestWing?'Guest wing installed · ':''}${original.gameplay.frontPorch?'Full porch installed · ':''}${additionQuote(original,'loft').installed?'Loft converted · ':''}Prior tier purchases are credited. Porch improves guest appeal; loft adds two beds. Demand still applies.`);
+
  }
  if(pendingCabin)showCabinGhost(pendingCabin);
 }
@@ -1258,7 +1263,7 @@ function setBuildingDetail(which){
  for(const name of ['business','appearance']){const open=which===name;$('#'+name+'-panel').hidden=!open;$('#'+name+'-toggle').setAttribute('aria-expanded',String(open));}
 }
 $('#business-toggle').onclick=()=>{cancelRenovation();setBuildingDetail($('#business-panel').hidden?'business':null);};
-$('#appearance-toggle').onclick=()=>{if(previewingWing)cancelRenovation();const open=$('#appearance-panel').hidden;if(!open)cancelRenovation();setBuildingDetail(open?'appearance':null);};
+$('#appearance-toggle').onclick=()=>{if(extensionPreview)cancelRenovation();const open=$('#appearance-panel').hidden;if(!open)cancelRenovation();setBuildingDetail(open?'appearance':null);};
 const businessHomes=['business-summary','business-toggle','business-panel'].map(id=>{const node=$('#'+id),marker=document.createComment(id);node.before(marker);return {node,marker};});
 function syncFreeformPanel(){
  const b=blocks[selectedFreeform];if(b?.type!=='house')selectedFreeform=null;
@@ -1288,7 +1293,7 @@ $('#cabin-rotate').onclick=()=>{cabinRotation=(cabinRotation+1)%4;syncCabinPanel
 function cabinChoices(){return {design:$('#cabin-design').value,appearance:{exterior:$('#cabin-exterior').value,roof:$('#cabin-roof').value}};}
 function cancelRenovation(refresh=true){
  if(!renovationDraft)return;
- renovationDraft=null;previewingWing=false;ghost.visible=false;cabinView.setHidden(null);cabinGhost.group.visible=false;entranceArrow.visible=false;renderer.shadowMap.needsUpdate=true;
+ renovationDraft=null;extensionPreview=null;ghost.visible=false;cabinView.setHidden(null);cabinGhost.group.visible=false;entranceArrow.visible=false;renderer.shadowMap.needsUpdate=true;
  if(refresh)syncCabinPanel();
 }
 for(const id of ['cabin-design','cabin-exterior','cabin-roof'])$('#'+id).onchange=()=>{
@@ -1307,19 +1312,21 @@ $('#business-upgrade').onclick=()=>{
  const freeform=original.blueprint==='freeform-lodge';
  if(commit(freeform?setLodgeLevel(blocks,original,next.gameplay.businessLevel):blocks,water,terrain,freeform?cabins:cabins.map(b=>b.id===next.id?next:b),-quote.cost)){sound.effect('wood');syncCabinPanel();syncFreeformPanel();}
 };
-$('#wing-preview').onclick=()=>{
+function previewAddition(kind){
  const b=cabins.find(b=>b.id===selectedCabin);if(!b||renovationDraft)return;
- const draft=withGuestWing(b),error=placementError(draft,currentVillageData());
- previewingWing=true;renovationDraft=draft;cabinView.setHidden(b.id);cabinGhost.update([draft],(x,z)=>terrainHeight(terrain,x,z));cabinGhost.setValid(!error);cabinGhost.group.visible=true;showCabinFootprint(draft,error?'#d78469':'#91ba8a');renderer.shadowMap.needsUpdate=true;syncCabinPanel();
-};
+ const draft=withCabinAddition(b,kind),error=placementError(draft,currentVillageData());
+ extensionPreview=kind;renovationDraft=draft;cabinView.setHidden(b.id);cabinGhost.update([draft],(x,z)=>terrainHeight(terrain,x,z));cabinGhost.setValid(!error);cabinGhost.group.visible=true;showCabinFootprint(draft,error?'#d78469':'#91ba8a');renderer.shadowMap.needsUpdate=true;syncCabinPanel();
+}
+$('#wing-preview').onclick=()=>previewAddition('guestWing');$('#porch-preview').onclick=()=>previewAddition('frontPorch');$('#loft-preview').onclick=()=>previewAddition('loft');
 $('#wing-cancel').onclick=()=>cancelRenovation();
 $('#wing-confirm').onclick=()=>{
- if(!previewingWing)return;const original=cabins.find(b=>b.id===selectedCabin);if(!original)return;
- const next=withGuestWing(original),error=placementError(next,currentVillageData());if(error){notify(error);return;}
- if(commit(blocks,water,terrain,cabins.map(b=>b.id===next.id?next:b),-GUEST_WING.cost)){syncCabinPanel();sound.effect('wood');}
+ if(!extensionPreview)return;const original=cabins.find(b=>b.id===selectedCabin);if(!original)return;
+ const quote=additionQuote(original,extensionPreview),next=withCabinAddition(original,extensionPreview),error=placementError(next,currentVillageData());if(error){notify(error);return;}
+ if(skillLevel(skillProgress.xp.hospitality)<quote.hospitality){notify(`Requires Hospitality level ${quote.hospitality}.`);return;}
+ if(commit(blocks,water,terrain,cabins.map(b=>b.id===next.id?next:b),-quote.cost)){syncCabinPanel();sound.effect('wood');}
 };
 $('#renovation-confirm').onclick=()=>{
- if(previewingWing){$('#wing-confirm').onclick();return;}
+ if(extensionPreview){$('#wing-confirm').onclick();return;}
  const draft=renovationDraft;if(!draft)return;
  const original=cabins.find(b=>b.id===draft.id);if(!original){cancelRenovation();return;}
  // Apply only appearance to the latest functional state, never a stale draft copy.
