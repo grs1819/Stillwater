@@ -1,17 +1,17 @@
 import {freeformLodges} from './freeform.js';
-import {initialSkills,normalizeSkills} from './skills.js?v=retreat-expansion-1';
+import {initialSkills,normalizeSkills} from './skills.js?v=cosy-upgrades-1';
 import {ECONOMY,initialEconomy,normalizeEconomy,validatePaidGold} from './economy.js';
 import {LIMIT,key,normalize} from './town.js?v=freeform-lodge-1';
 import {levelSite,terrainLevel} from './terrain.js';
 export const CABIN=Object.freeze({id:'timber-guest-cabin',version:1,design:'gable',width:2,depth:2,entrance:[0,2]});
 export const GUEST_WING=Object.freeze({cost:250,beds:2,cells:[[0,-1],[1,-1]]});
-export const CABIN_ADDITIONS=Object.freeze({guestWing:{name:'Guest wing',cost:250,hospitality:1},frontPorch:{name:'Full-width porch',cost:150,hospitality:1},loft:{name:'Dormer loft conversion',cost:250,hospitality:3},secondStory:{name:'Second story',cost:650,hospitality:5},premiumSuite:{name:'Premium suite',cost:450,hospitality:5},rearTerrace:{name:'Rear gathering terrace',cost:200,hospitality:2}});
+export const CABIN_ADDITIONS=Object.freeze({guestWing:{name:'Guest wing',cost:250,hospitality:1},frontPorch:{name:'Full-width porch',cost:150,hospitality:1},loft:{name:'Dormer loft conversion',cost:250,hospitality:3},secondStory:{name:'Second story',cost:650,hospitality:5},premiumSuite:{name:'Premium suite',cost:450,hospitality:5},fireplace:{name:'Stone fireplace',cost:200,hospitality:2},luxury:{name:'Luxury renovation',cost:250,hospitality:3},roofLookout:{name:'Roof lookout',cost:300,hospitality:5}});
 export const hasLoft=b=>!!b.gameplay.loft||(b.gameplay.businessLevel||0)>=2;
 export function additionQuote(b,kind){
  if(b.blueprint!==CABIN.id||!CABIN_ADDITIONS[kind])throw new Error('Unsupported cabin addition.');
  const item=CABIN_ADDITIONS[kind],level=b.gameplay.businessLevel||0;
- const reason=kind==='premiumSuite'&&!hasLoft(b)?'Convert the loft or add a second story first.':null;
- return {...item,reason,cost:kind==='secondStory'&&hasLoft(b)?item.cost-250:kind==='frontPorch'&&level>=1||kind==='loft'&&level>=2?0:item.cost,installed:kind==='loft'?hasLoft(b):kind==='premiumSuite'?(level>=3||!!b.gameplay.premiumSuite):!!b.gameplay[kind]};
+ const reason=['premiumSuite','roofLookout'].includes(kind)&&!hasLoft(b)?'Convert the loft or add a second story first.':null;
+ return {...item,reason,cost:kind==='premiumSuite'&&b.gameplay.fireplace?item.cost-200:kind==='secondStory'&&hasLoft(b)?item.cost-250:kind==='frontPorch'&&level>=1||kind==='loft'&&level>=2?0:item.cost,installed:kind==='loft'?hasLoft(b):kind==='premiumSuite'?(level>=3||!!b.gameplay.premiumSuite):kind==='fireplace'?(level>=3||!!b.gameplay.premiumSuite||!!b.gameplay.fireplace):!!b.gameplay[kind]};
 }
 export function withCabinAddition(b,kind){
  const quote=additionQuote(b,kind);if(quote.reason)throw new Error(quote.reason);
@@ -39,7 +39,7 @@ export function buildingAt(blueprint,x,z,rotation=0,appearance,id){
  return {...cabinAt(x,z,rotation,appearance,id),blueprint};
 }
 export function localCell(b,x,z){const [a,c]=b.position;return [[a+x,c+z],[a+z,c-x],[a-x,c-z],[a-z,c+x]][b.rotation];}
-export function footprint(b){return [[0,0],[1,0],[0,1],[1,1],...(b.gameplay.guestWing?GUEST_WING.cells:[]),...(b.gameplay.frontPorch?[[0,2],[1,2]]:[]),...(b.gameplay.rearTerrace?[[0,b.gameplay.guestWing?-2:-1],[1,b.gameplay.guestWing?-2:-1],[0,b.gameplay.guestWing?-3:-2],[1,b.gameplay.guestWing?-3:-2]]:[])].map(([x,z])=>localCell(b,x,z));}
+export function footprint(b){return [[0,0],[1,0],[0,1],[1,1],...(b.gameplay.guestWing?GUEST_WING.cells:[]),...(b.gameplay.frontPorch?[[0,2],[1,2]]:[])].map(([x,z])=>localCell(b,x,z));}
 export const entrance=b=>localCell(b,...CABIN.entrance);
 export function cabinOccupancy(buildings,includeEntrance=false){const out=new Map();for(const b of buildings)for(const [x,z]of [...footprint(b),...(includeEntrance?[entrance(b)]:[])])out.set(`${x},${z}`,b.id);return out;}
 export function placementError(b,world){
@@ -77,9 +77,11 @@ export function validateWorld(value){
   if(!input||typeof input.id!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.id)||ids.has(input.id)||!Object.hasOwn(BLUEPRINTS,input.blueprint)||input.definitionVersion!==1||!Object.hasOwn(DESIGNS,input.design)||!Array.isArray(input.position)||input.position.length!==2||!input.position.every(Number.isInteger)||![0,1,2,3].includes(input.rotation)||!input.gameplay||typeof input.gameplay!=='object'||Array.isArray(input.gameplay))throw new Error('Unsupported or invalid building. Original save retained.');
   const b=renovateCabin(buildingAt(input.blueprint,...input.position,input.rotation,input.appearance,input.id),{design:input.design,appearance:input.appearance||{}});b.gameplay=structuredClone(input.gameplay);b.paidGold=validatePaidGold(input.paidGold);
   if(b.gameplay.businessLevel!==undefined&&![0,1,2,3].includes(b.gameplay.businessLevel))throw new Error('Invalid business upgrade.');
-  for(const field of ['frontPorch','loft','secondStory','premiumSuite','rearTerrace'])if(b.gameplay[field]!==undefined&&(b.blueprint!==CABIN.id||typeof b.gameplay[field]!=='boolean'))throw new Error('Invalid cabin addition.');
+  for(const field of ['frontPorch','loft','secondStory','premiumSuite','rearTerrace','terraceRefunded','fireplace','luxury','roofLookout'])if(b.gameplay[field]!==undefined&&(b.blueprint!==CABIN.id||typeof b.gameplay[field]!=='boolean'))throw new Error('Invalid cabin addition.');
   if(b.gameplay.guestWing!==undefined&&(b.blueprint!==CABIN.id||typeof b.gameplay.guestWing!=='boolean'))throw new Error('Invalid guest wing.');
-  if((b.gameplay.secondStory||b.gameplay.premiumSuite)&&!hasLoft(b))throw new Error('Upper accommodation needs a loft.');
+  if(b.gameplay.rearTerrace){if(!b.gameplay.terraceRefunded)world.economy.gold=Math.min(ECONOMY.maxGold,world.economy.gold+200);b.gameplay.terraceRefunded=true;}
+  delete b.gameplay.rearTerrace;
+  if((b.gameplay.secondStory||b.gameplay.premiumSuite||b.gameplay.roofLookout)&&!hasLoft(b))throw new Error('Upper accommodation needs a loft.');
   const error=placementError(b,world);if(error)throw new Error(error);
   ids.add(b.id);world.buildings.push(b);
  }
