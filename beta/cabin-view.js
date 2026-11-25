@@ -24,7 +24,7 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
  function cottagePeak(id){return id==='woodland'?2.48:id==='craftsman'?2.28:2.32;}
  function build(b){
   const cafe=b.blueprint===CAFE.id,shop=cafe||b.blueprint===SHOP.id,level=b.gameplay.businessLevel||0,upgraded=level>0||!!b.gameplay.frontPorch;
-  const g=new THREE.Group(),{wall}=EXTERIORS[b.appearance.exterior],frame=cafe?'#343e3b':EXTERIORS[b.appearance.exterior].frame,finish=FINISHES[b.appearance.roof],design=DESIGNS[b.design],peak=(cottagePeak(b.design))-(cafe?.18:0)+((level>=2||b.gameplay.loft)?(shop?.12:.32):0)+(level===3?.12:0),cottage=b.design==='woodland',lodge=b.design==='craftsman',half=design.wallWidth/2,lo=.5-half,hi=.5+half,frontWall=hi-(upgraded&&!shop?.28:0),wallDepth=design.wallWidth-(upgraded&&!shop?.28:0);
+  const g=new THREE.Group(),{wall}=EXTERIORS[b.appearance.exterior],frame=cafe?'#343e3b':EXTERIORS[b.appearance.exterior].frame,finish=FINISHES[b.appearance.roof],design=DESIGNS[b.design],peak=(cottagePeak(b.design))-(cafe?.18:0)+((level>=2||b.gameplay.loft)?(shop?.12:.56):0)+(level===3?.12:0),cottage=b.design==='woodland',lodge=b.design==='craftsman',half=design.wallWidth/2,lo=.5-half,hi=.5+half,frontWall=hi-(upgraded&&!shop?.28:0),wallDepth=design.wallWidth-(upgraded&&!shop?.28:0);
   g.userData={blueprint:b.blueprint,design:b.design,appearance:{...b.appearance},businessLevel:level};
   box(g,1.94,.16,1.94,.5,.08,.5,'#aaa58d');
   if(shop){
@@ -215,14 +215,19 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
     beam(d,[-.26,y+.24,.25],[0,y+.44,.25],.045,frame);beam(d,[0,y+.44,.25],[.26,y+.24,.25],.045,frame);
    }
    box(loft,design.wallWidth,.10,.07,.5,1.59,hi+.035,frame);
+   const glazing=feature('cabin-loft-front-glazing'),base=1.72,top=peak-.22,w=design.wallWidth*.36,z=hi-(level===3?.21:-.016);
+   // Broad A-frame glazing is visible above the porch; premium balconies stay in front.
+   const vertices=[.5-w,base,z,.5+w,base,z,.5,top,z,.5,top,z,.5+w,base,z,.5-w,base,z];
+   const pane=new THREE.BufferGeometry();pane.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));pane.computeVertexNormals();glazing.add(new THREE.Mesh(pane,material('#afc8bd')));
+   for(const side of [-1,1])beam(glazing,[.5+side*w,base,z+.022],[.5,top,z+.022],.065,frame);
+   box(glazing,w*2,.065,.055,.5,base,z+.023,frame);
+   beam(glazing,[.5,base,z+.025],[.5,top,z+.025],.045,frame);
+   const railY=base+(top-base)*.39;box(glazing,w*1.22,.035,.04,.5,railY,z+.025,frame);
+
   }
   if(level===3&&!shop){
    const retreat=feature('cabin-premium-balcony');
    // Recessed dark glazing reads as a sheltered loft; outer beams remain prominent.
-   box(retreat,.68,.48,.045,.5,2.04,hi-.228,'#a3ac8e');
-   for(const x of [.16,.5,.84])box(retreat,.04,.50,.065,x,2.04,hi-.195,frame);
-   box(retreat,.71,.035,.065,.5,2.04,hi-.194,frame);
-   beam(retreat,[.5,2.30,hi+.01],[.5,peak-.07,hi+.01],.065,frame);
    box(retreat,.94,.075,.24,.5,1.79,1.30,frame);
    for(const x of [.07,.285,.5,.715,.93])box(retreat,.035,.27,.045,x,1.96,1.40,frame);
    box(retreat,.92,.05,.06,.5,2.10,1.40,frame);
