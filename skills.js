@@ -24,7 +24,7 @@ export function skillStatus(xp){
  const level=skillLevel(xp),start=xpForLevel(level),next=level===PROGRESSION.maxLevel?null:xpForLevel(level+1);
  return {level,xp,next,remaining:next===null?0:next-xp,progress:next===null?1:(xp-start)/(next-start)};
 }
-export function developmentCounts(world){return {trees:Object.values(world.blocks||{}).filter(b=>b.type==='tree').length,buildings:(world.buildings||[]).length+lodgeRecords(world.blocks||{}).length,upgrades:lodgeRecords(world.blocks||{}).reduce((n,b)=>n+b.level,0)+(world.buildings||[]).reduce((n,b)=>n+(b.gameplay?.businessLevel||0)+(b.gameplay?.guestWing?1:0)+(b.gameplay?.frontPorch&&!(b.gameplay.businessLevel>=1)?1:0)+(b.gameplay?.loft&&!(b.gameplay.businessLevel>=2)?1:0),0)};}
+export function developmentCounts(world){return {trees:Object.values(world.blocks||{}).filter(b=>b.type==='tree').length,buildings:(world.buildings||[]).length+lodgeRecords(world.blocks||{}).length,upgrades:lodgeRecords(world.blocks||{}).reduce((n,b)=>n+b.level,0)+(world.buildings||[]).reduce((n,b)=>n+(b.gameplay?.businessLevel||0)+(b.gameplay?.guestWing?1:0)+(b.gameplay?.frontPorch&&!(b.gameplay.businessLevel>=1)?1:0)+(b.gameplay?.loft&&!(b.gameplay.businessLevel>=2)?1:0)+(b.gameplay?.secondStory?1:0)+(b.gameplay?.premiumSuite&&!(b.gameplay.businessLevel>=3)?1:0)+(b.gameplay?.rearTerrace?1:0),0)};}
 export function initialSkills(world={}){return {version:1,xp:Object.fromEntries(ids.map(id=>[id,0])),records:developmentCounts(world)};}
 export function normalizeSkills(value,world){
  if(value===undefined)return initialSkills(world);
