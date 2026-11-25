@@ -23,6 +23,7 @@ window.tierUI={data:currentVillageData,save,undo,select:()=>edit({position:[0,0,
   const r=await page.evaluate(c=>tierTest(c),{shop,design,exterior,roof,level,rotation:level});maxMeshes=Math.max(maxMeshes,r.meshes);assert.deepEqual(r.bounds,[],`${shop==='cafe'?'cafe':shop?'shop':'cabin'} ${design} tier ${level} clearance`);assert.ok(r.match,'preview/final parity');
   for(const name of ['cafe-industrial-shell','cafe-steel-canopy','cafe-stove-flue'])assert.equal(r.features.includes(name),shop==='cafe',name+' is café-only');
   if(level)assert.ok(r.features.includes(shop?'shop-outdoor-displays':'cabin-comfort-porch'));
+  assert.equal(r.features.includes('cabin-loft-front-glazing'),!shop&&level>=2,'loft front glazing follows cabin tier');
   if(level>=2)assert.ok(r.features.includes(shop?'shop-raised-roof-windows':'cabin-twin-dormers'));
   if(level===3)assert.ok(r.features.includes(shop?'shop-outfitter-portico':'cabin-premium-balcony'));
  }

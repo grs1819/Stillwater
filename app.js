@@ -4,7 +4,7 @@ import {createSkillsView} from './skills-view.js';
 import {businessSummary,upgradeQuote,upgradeBusiness,upgradeError,businessTier,settleIncome} from './businesses.js?v=cabin-additions-1';
 import {ECONOMY,transactGold,removalRefund,renovationCost,advanceIncome} from './economy.js';
 import {renovateCabin,emptyWorld,validateWorld,buildingAt,BLUEPRINTS,CABIN,GUEST_WING,withGuestWing,additionQuote,withCabinAddition,SHOP,CAFE,placementError,cabinOccupancy,navigationBlocks,footprint} from './blueprints.js?v=cabin-additions-1';
-import {createCabinView} from './cabin-view.js?v=cabin-additions-1';
+import {createCabinView} from './cabin-view.js?v=loft-gable-1';
 import {createAccounts} from './accounts.js';
 import {createCloudSync,supabaseRemote} from './cloud-sync.js';
 import {createVillageStore} from './village-store.js';
