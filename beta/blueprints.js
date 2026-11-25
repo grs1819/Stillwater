@@ -1,9 +1,14 @@
 import {freeformLodges} from './freeform.js';
-import {initialSkills,normalizeSkills} from './skills.js?v=freeform-lodge-1';
+import {initialSkills,normalizeSkills} from './skills.js?v=guest-wing-1';
 import {ECONOMY,initialEconomy,normalizeEconomy,validatePaidGold} from './economy.js';
 import {LIMIT,key,normalize} from './town.js?v=freeform-lodge-1';
 import {levelSite,terrainLevel} from './terrain.js';
 export const CABIN=Object.freeze({id:'timber-guest-cabin',version:1,design:'gable',width:2,depth:2,entrance:[0,2]});
+export const GUEST_WING=Object.freeze({cost:250,beds:2,cells:[[0,-1],[1,-1]]});
+export function withGuestWing(b){
+ if(b.blueprint!==CABIN.id||b.gameplay.guestWing)throw new Error('Only a cabin without a guest wing can add one.');
+ return {...b,gameplay:{...b.gameplay,guestWing:true}};
+}
 export const SHOP=Object.freeze({...CABIN,id:'supply-shop'});
 export const CAFE=Object.freeze({...CABIN,id:'woodland-cafe'});
 export const BLUEPRINTS=Object.freeze({[CAFE.id]:Object.freeze({...CAFE,name:'Woodland Café',cost:ECONOMY.cafeCost}),[CABIN.id]:Object.freeze({...CABIN,name:'Timber Guest Cabin',cost:ECONOMY.cabinCost}),[SHOP.id]:Object.freeze({...SHOP,name:'Supply Shop',cost:ECONOMY.shopCost})});
@@ -24,7 +29,7 @@ export function buildingAt(blueprint,x,z,rotation=0,appearance,id){
  return {...cabinAt(x,z,rotation,appearance,id),blueprint};
 }
 export function localCell(b,x,z){const [a,c]=b.position;return [[a+x,c+z],[a+z,c-x],[a-x,c-z],[a-z,c+x]][b.rotation];}
-export function footprint(b){return [[0,0],[1,0],[0,1],[1,1]].map(([x,z])=>localCell(b,x,z));}
+export function footprint(b){return [[0,0],[1,0],[0,1],[1,1],...(b.gameplay.guestWing?GUEST_WING.cells:[])].map(([x,z])=>localCell(b,x,z));}
 export const entrance=b=>localCell(b,...CABIN.entrance);
 export function cabinOccupancy(buildings,includeEntrance=false){const out=new Map();for(const b of buildings)for(const [x,z]of [...footprint(b),...(includeEntrance?[entrance(b)]:[])])out.set(`${x},${z}`,b.id);return out;}
 export function placementError(b,world){
@@ -62,6 +67,7 @@ export function validateWorld(value){
   if(!input||typeof input.id!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.id)||ids.has(input.id)||!Object.hasOwn(BLUEPRINTS,input.blueprint)||input.definitionVersion!==1||!Object.hasOwn(DESIGNS,input.design)||!Array.isArray(input.position)||input.position.length!==2||!input.position.every(Number.isInteger)||![0,1,2,3].includes(input.rotation)||!input.gameplay||typeof input.gameplay!=='object'||Array.isArray(input.gameplay))throw new Error('Unsupported or invalid building. Original save retained.');
   const b=renovateCabin(buildingAt(input.blueprint,...input.position,input.rotation,input.appearance,input.id),{design:input.design,appearance:input.appearance||{}});b.gameplay=structuredClone(input.gameplay);b.paidGold=validatePaidGold(input.paidGold);
   if(b.gameplay.businessLevel!==undefined&&![0,1,2,3].includes(b.gameplay.businessLevel))throw new Error('Invalid business upgrade.');
+  if(b.gameplay.guestWing!==undefined&&(b.blueprint!==CABIN.id||typeof b.gameplay.guestWing!=='boolean'))throw new Error('Invalid guest wing.');
   const error=placementError(b,world);if(error)throw new Error(error);
   ids.add(b.id);world.buildings.push(b);
  }
