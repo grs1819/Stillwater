@@ -1,5 +1,5 @@
 import {freeformLodges} from './freeform.js';
-import {initialSkills,normalizeSkills} from './skills.js?v=cosy-upgrades-1';
+import {initialSkills,normalizeSkills} from './skills.js?v=sauna-1';
 import {ECONOMY,initialEconomy,normalizeEconomy,validatePaidGold} from './economy.js';
 import {LIMIT,key,normalize} from './town.js?v=freeform-lodge-1';
 import {levelSite,terrainLevel} from './terrain.js';
@@ -21,7 +21,8 @@ export function withCabinAddition(b,kind){
 export const withGuestWing=b=>withCabinAddition(b,'guestWing');
 export const SHOP=Object.freeze({...CABIN,id:'supply-shop'});
 export const CAFE=Object.freeze({...CABIN,id:'woodland-cafe'});
-export const BLUEPRINTS=Object.freeze({[CAFE.id]:Object.freeze({...CAFE,name:'Woodland Café',cost:ECONOMY.cafeCost}),[CABIN.id]:Object.freeze({...CABIN,name:'Timber Guest Cabin',cost:ECONOMY.cabinCost}),[SHOP.id]:Object.freeze({...SHOP,name:'Supply Shop',cost:ECONOMY.shopCost})});
+export const SAUNA=Object.freeze({...CABIN,id:'woodland-sauna'});
+export const BLUEPRINTS=Object.freeze({[SAUNA.id]:Object.freeze({...SAUNA,name:'Woodland Sauna',cost:300}),[CAFE.id]:Object.freeze({...CAFE,name:'Woodland Café',cost:ECONOMY.cafeCost}),[CABIN.id]:Object.freeze({...CABIN,name:'Timber Guest Cabin',cost:ECONOMY.cabinCost}),[SHOP.id]:Object.freeze({...SHOP,name:'Supply Shop',cost:ECONOMY.shopCost})});
 // Stable IDs: gable is the original Frontier design, so existing 2.0 saves remain valid.
 export const DESIGNS=Object.freeze({
  gable:Object.freeze({name:'Frontier Cabin',version:1,peak:2.22,wallWidth:1.82,eave:.49,renovationCost:ECONOMY.renovationCost,constructionLevel:0}),
@@ -76,7 +77,7 @@ export function validateWorld(value){
  for(const input of value.buildings){
   if(!input||typeof input.id!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.id)||ids.has(input.id)||!Object.hasOwn(BLUEPRINTS,input.blueprint)||input.definitionVersion!==1||!Object.hasOwn(DESIGNS,input.design)||!Array.isArray(input.position)||input.position.length!==2||!input.position.every(Number.isInteger)||![0,1,2,3].includes(input.rotation)||!input.gameplay||typeof input.gameplay!=='object'||Array.isArray(input.gameplay))throw new Error('Unsupported or invalid building. Original save retained.');
   const b=renovateCabin(buildingAt(input.blueprint,...input.position,input.rotation,input.appearance,input.id),{design:input.design,appearance:input.appearance||{}});b.gameplay=structuredClone(input.gameplay);b.paidGold=validatePaidGold(input.paidGold);
-  if(b.gameplay.businessLevel!==undefined&&![0,1,2,3].includes(b.gameplay.businessLevel))throw new Error('Invalid business upgrade.');
+  if(b.gameplay.businessLevel!==undefined&&!(b.blueprint===SAUNA.id?[0,1,2,3,4,5]:[0,1,2,3]).includes(b.gameplay.businessLevel))throw new Error('Invalid business upgrade.');
   for(const field of ['frontPorch','loft','secondStory','premiumSuite','rearTerrace','terraceRefunded','fireplace','luxury','roofLookout'])if(b.gameplay[field]!==undefined&&(b.blueprint!==CABIN.id||typeof b.gameplay[field]!=='boolean'))throw new Error('Invalid cabin addition.');
   if(b.gameplay.guestWing!==undefined&&(b.blueprint!==CABIN.id||typeof b.gameplay.guestWing!=='boolean'))throw new Error('Invalid guest wing.');
   if(b.gameplay.rearTerrace){if(!b.gameplay.terraceRefunded)world.economy.gold=Math.min(ECONOMY.maxGold,world.economy.gold+200);b.gameplay.terraceRefunded=true;}

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {EXTERIORS,FINISHES,DESIGNS,SHOP,CAFE} from './blueprints.js?v=cosy-upgrades-1';
+import {EXTERIORS,FINISHES,DESIGNS,SHOP,CAFE,SAUNA} from './blueprints.js?v=sauna-1';
 // Reuse the game's timber beams, cached materials, roofing finishes and details.
 export function createCabinView({box,beam,material,roofingMaterial,roofDetails},preview=false){
  const group=new THREE.Group(),cache=new Map();
@@ -22,7 +22,48 @@ export function createCabinView({box,beam,material,roofingMaterial,roofDetails},
  const outlineMaterial=preview?new THREE.LineBasicMaterial({color:0x507e57,transparent:true,opacity:.9}):null;
  function dispose(g){g.traverse(o=>{if(o.geometry)o.geometry.dispose();});}
  function cottagePeak(id){return id==='woodland'?2.48:id==='craftsman'?2.28:2.32;}
+ function buildSauna(b){
+  const g=new THREE.Group(),level=b.gameplay.businessLevel||0,wall=EXTERIORS[b.appearance.exterior].wall,frame='#303e3e',wood='#bb9063',roof=FINISHES[b.appearance.roof].color;
+  g.userData={blueprint:b.blueprint,businessLevel:level};
+  const part=name=>{const p=new THREE.Group();p.name=name;g.add(p);return p;};
+  const shell=part('sauna-shell');
+  const pane=(p,w,h,d,x,y,z)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),shopGlass);m.position.set(x,y,z);p.add(m);};
+  // Hollow cedar room and covered front deck, all inside the reserved 2 × 2 site.
+  box(shell,1.92,.16,1.92,.5,.20,.5,wood);
+  for(const x of [-.33,1.33])for(const z of [-.33,1.33])box(shell,.13,.25,.13,x,.125,z,frame);
+  box(shell,1.72,1.38,.08,.5,.96,-.32,wall);
+  for(const x of [-.32,1.32])box(shell,.08,1.38,1.08,x,.96,.18,wall);
+  for(let i=0;i<9;i++){
+   box(shell,1.72,.012,.012,.5,.34+i*.145,-.365,'#997852');
+   for(const x of [-.365,1.365])box(shell,.012,.012,1.08,x,.34+i*.145,.18,'#997852');
+  }
+  // Door at local x=0 aligns with the shared reserved entrance tile.
+  for(const x of [-.30,.28,1.30])box(shell,.055,1.35,.065,x,.96,.73,frame);
+  box(shell,.53,1.30,.055,-.01,.96,.73,wood);pane(shell,.37,.88,.025,-.01,1.06,.765);
+  box(shell,.025,.14,.025,.18,.91,.79,'#d8be81');
+  if(level<3){box(shell,.97,.50,.07,.80,.54,.73,wall);pane(shell,.94,.83,.025,.80,1.20,.73);}
+  else {const p=part('sauna-panoramic');pane(p,.97,1.29,.025,.80,.96,.73);box(p,.035,1.31,.045,.80,.96,.75,frame);}
+  for(const y of [.30,1.63])box(shell,1.70,.055,.065,.5,y,.73,frame);
+  for(const x of [-.36,1.36])box(shell,.09,1.58,.09,x,1.02,1.35,frame);
+  const cap=box(shell,1.96,.105,1.96,.5,1.79,.5,roof);cap.rotation.x=-.045;
+  box(shell,1.82,.04,1.82,.5,1.72,.5,wood);
+  for(const x of [-.40,1.40])box(shell,.07,.13,1.95,x,1.80,.5,frame);
+  box(shell,1.95,.13,.065,.5,1.84,1.44,frame);
+  for(let x=-.25;x<1.4;x+=.26){const seam=box(shell,.018,.018,1.82,x,1.85,.5,roof);seam.rotation.x=-.045;}
+  // Interior seating remains visible through the window; no opaque backing wall.
+  box(shell,1.30,.09,.30,.55,.52,-.08,wood);
+  if(level>=1){const p=part('sauna-benches');box(p,1.36,.09,.27,.55,.78,-.12,wood);box(p,.12,.50,.48,1.15,.53,.02,wood);for(let i=0;i<3;i++)box(p,.19,.045,.14,.25+i*.24,.85,-.08,'#eee1c6');}
+  if(level<2){box(shell,.24,.31,.24,-.08,.45,.25,frame);box(shell,.065,1.40,.065,-.08,1.30,.25,frame);}
+  if(level>=2){const p=part('sauna-heater');box(p,.30,.40,.28,-.08,.49,.25,frame);box(p,.24,.07,.24,-.08,.72,.25,'#8e9389');for(let i=0;i<5;i++){const m=new THREE.Mesh(new THREE.DodecahedronGeometry(.055,0),material('#a5aaa0'));m.position.set(-.15+(i%3)*.07,.77+Math.floor(i/3)*.03,.21+(i%2)*.08);p.add(m);}box(p,.075,1.28,.075,-.08,1.37,.25,frame);box(p,.16,.055,.16,-.08,2.03,.25,frame);for(let i=0;i<3;i++)box(p,.24,.055,.13,1.10,.33+i*.06,1.05,wood);}
+  if(level>=4){const p=part('sauna-cooling-porch');for(const x of [-.35,1.35]){pane(p,.018,.52,.58,x,.64,1.02);box(p,.045,.045,.65,x,.92,1.02,frame);}pane(p,.94,.52,.018,.85,.64,1.35);box(p,1.02,.045,.045,.85,.92,1.35,frame);box(p,.60,.08,.26,.90,.50,1.10,wood);for(const x of [.65,1.15])box(p,.06,.20,.20,x,.36,1.10,frame);for(const x of [0,.9])box(p,.12,.018,.12,x,1.68,1.05,'#ffe4a1');}
+  if(level>=5){const p=part('sauna-forest-spa');box(p,1.92,.14,1.92,.5,.12,.5,'#8c9287');for(let i=0;i<6;i++)box(p,.035,.72,.055,1.38,.69,.90+i*.085,wood);box(p,.45,.30,.46,.91,.45,.20,'#87948c');box(p,.35,.015,.35,.91,.61,.20,'#83b5b5');for(const x of [.69,1.13])box(p,.035,.06,.46,x,.63,.20,wood);for(const z of [-.02,.42])box(p,.45,.06,.035,.91,.63,z,wood);}
+  // Merge static details per material within each named upgrade group.
+  for(const p of g.children){p.updateMatrixWorld(true);const batches=new Map();for(const m of p.children){const list=batches.get(m.material)||[];list.push(m);batches.set(m.material,list);}for(const [mat,meshes]of batches){if(meshes.length<2)continue;const positions=[],normals=[];for(const m of meshes){const geo=m.geometry.index?m.geometry.toNonIndexed():m.geometry.clone();geo.applyMatrix4(m.matrixWorld);positions.push(...geo.attributes.position.array);normals.push(...geo.attributes.normal.array);geo.dispose();m.geometry.dispose();m.removeFromParent();}const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geo.setAttribute('normal',new THREE.Float32BufferAttribute(normals,3));p.add(new THREE.Mesh(geo,mat));}}
+  g.traverse(o=>{if(!o.isMesh)return;o.castShadow=!preview;o.receiveShadow=!preview;if(preview)o.material=previewMaterial(o.material);o.userData={buildingId:b.id,position:[b.position[0],0,b.position[1]]};});
+  return g;
+ }
  function build(b){
+  if(b.blueprint===SAUNA.id)return buildSauna(b);
   const cafe=b.blueprint===CAFE.id,shop=cafe||b.blueprint===SHOP.id,level=b.gameplay.businessLevel||0,suite=level===3||!!b.gameplay.premiumSuite,story=b.gameplay.secondStory?1.15:0,upgraded=level>0||!!b.gameplay.frontPorch||suite;
   const g=new THREE.Group(),{wall}=EXTERIORS[b.appearance.exterior],frame=cafe?'#343e3b':EXTERIORS[b.appearance.exterior].frame,finish=FINISHES[b.appearance.roof],design=DESIGNS[b.design],peak=(cottagePeak(b.design))-(cafe?.18:0)+((level>=2||b.gameplay.loft)?(shop?.12:.56):0)+(level===3?.12:0),cottage=b.design==='woodland',lodge=b.design==='craftsman',half=design.wallWidth/2,lo=.5-half,hi=.5+half,frontWall=hi-(upgraded&&!shop?.28:0),wallDepth=design.wallWidth-(upgraded&&!shop?.28:0);
   g.userData={blueprint:b.blueprint,design:b.design,appearance:{...b.appearance},businessLevel:level};

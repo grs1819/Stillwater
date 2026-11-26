@@ -1,10 +1,10 @@
 import {LODGE_COST,freeformLodges,selectedLodge,lodgeOpeningError,openLodge,reconcileLodges,setLodgeLevel} from './freeform.js';
-import {developmentXP,hospitalityXP,levelGains,unlocked,skillLevel} from './skills.js?v=cosy-upgrades-1';
+import {developmentXP,hospitalityXP,levelGains,unlocked,skillLevel} from './skills.js?v=sauna-1';
 import {createSkillsView} from './skills-view.js';
-import {businessSummary,upgradeQuote,upgradeBusiness,upgradeError,businessTier,settleIncome} from './businesses.js?v=cosy-upgrades-1';
+import {businessSummary,upgradeQuote,upgradeBusiness,upgradeError,businessTier,settleIncome} from './businesses.js?v=sauna-1';
 import {ECONOMY,transactGold,removalRefund,renovationCost,advanceIncome} from './economy.js';
-import {renovateCabin,emptyWorld,validateWorld,buildingAt,BLUEPRINTS,CABIN,GUEST_WING,withGuestWing,additionQuote,withCabinAddition,SHOP,CAFE,placementError,cabinOccupancy,navigationBlocks,footprint,localCell} from './blueprints.js?v=cosy-upgrades-1';
-import {createCabinView} from './cabin-view.js?v=cosy-upgrades-1';
+import {renovateCabin,emptyWorld,validateWorld,buildingAt,BLUEPRINTS,CABIN,GUEST_WING,withGuestWing,additionQuote,withCabinAddition,SHOP,CAFE,SAUNA,placementError,cabinOccupancy,navigationBlocks,footprint,localCell} from './blueprints.js?v=sauna-1';
+import {createCabinView} from './cabin-view.js?v=sauna-1';
 import {createAccounts} from './accounts.js';
 import {createCloudSync,supabaseRemote} from './cloud-sync.js';
 import {createVillageStore} from './village-store.js';
@@ -134,7 +134,7 @@ function currentBusiness(){
  if(!businessCache||businessCache.blocks!==blocks||businessCache.water!==water||businessCache.cabins!==cabins)businessCache={blocks,water,cabins,result:businessSummary(currentVillageData())};
  return businessCache.result;
 }
-function placementBlueprint(){return {shop:SHOP.id,cafe:CAFE.id}[$('#building-mode').value]||CABIN.id;}
+function placementBlueprint(){return {shop:SHOP.id,cafe:CAFE.id,sauna:SAUNA.id}[$('#building-mode').value]||CABIN.id;}
 function selectedBuildingAt(x,z,id){return renovateCabin(buildingAt(placementBlueprint(),x,z,cabinRotation,undefined,id),cabinChoices());}
 function updateEconomyUI(){
  const report=currentBusiness(),{appeal,income}=report,perMinute=60000/ECONOMY.intervalMs;
@@ -152,8 +152,8 @@ function updateEconomyUI(){
  if(!original)setBuildingDetail($('#appearance-panel').hidden?null:'appearance');
  if(original){
   const row=report.rows.find(r=>r.id===original.id),quote=upgradeQuote(original);
-  $('#business-summary').textContent=`Tier ${row.level}/3 · ${row.shop?'Customers':'Guests'} ${row.shop?row.customers:row.guests}/${row.capacity} · +${row.income*perMinute} Gold/min`;
-  $('#business-description').textContent=row.shop?`Serving ${row.lodgings} nearby lodging${row.lodgings===1?'':'s'}. Each guest can visit one shop and one café.`:`${row.guests} guests staying in ${row.capacity} beds. Settlement demand: ${report.demand}.`;
+  $('#business-summary').textContent=`Tier ${row.level}/${row.kind==='sauna'?5:3} · ${row.shop?'Customers':'Guests'} ${row.shop?row.customers:row.guests}/${row.capacity} · +${row.income*perMinute} Gold/min`;
+  $('#business-description').textContent=row.shop?`Serving ${row.lodgings} nearby lodging${row.lodgings===1?'':'s'}. Each guest can visit one shop, one café and one sauna.`:`${row.guests} guests staying in ${row.capacity} beds. Settlement demand: ${report.demand}.`;
   $('#business-hint').textContent=row.hint;
   $('#business-upgrade').textContent=!quote?'Fully upgraded':`${quote.name} · ${quote.cost} Gold`;
   $('#business-upgrade').disabled=!quote||!!renovationDraft||!!upgradeError(original,skillProgress)||!!fundsError(quote.cost);
@@ -1250,8 +1250,10 @@ function syncCabinPanel(){
  dock.classList.toggle('cabin-context',!!b);
  cabinSelection.visible=!!b;cabinSelection.scale.set(1,1,1);
  if(b){const cells=footprint(b),xs=cells.map(c=>c[0]),zs=cells.map(c=>c[1]);cabinSelection.position.set(cells.reduce((n,c)=>n+c[0],0)/cells.length,terrainHeight(terrain,...b.position)+.12,cells.reduce((n,c)=>n+c[1],0)/cells.length);cabinSelection.scale.set((Math.max(...xs)-Math.min(...xs)+1)/2,1,(Math.max(...zs)-Math.min(...zs)+1)/2);}
- if(b){const shown=renovationDraft||b;$('#building-mode').value=b.blueprint===CAFE.id?'cafe':b.blueprint===SHOP.id?'shop':'cabin';$('#cabin-design').value=shown.design;$('#cabin-exterior').value=shown.appearance.exterior;$('#cabin-roof').value=shown.appearance.roof;}
+ if(b){const shown=renovationDraft||b;$('#building-mode').value=b.blueprint===SAUNA.id?'sauna':b.blueprint===CAFE.id?'cafe':b.blueprint===SHOP.id?'shop':'cabin';$('#cabin-design').value=shown.design;$('#cabin-exterior').value=shown.appearance.exterior;$('#cabin-roof').value=shown.appearance.roof;}
  syncDesignCards();
+ const sauna=$('#building-mode').value==='sauna';
+ $('.design-cards').hidden=sauna;$('#cabin-design').hidden=sauna;$('label[for=cabin-design]').hidden=sauna;
  const active=$('#building-mode').value!=='freeform';
  $('#cabin-options').hidden=!active;$('#freeform-options').hidden=active;
  $('#cabin-status').textContent=b?(renovationDraft?'Renovation preview · confirm to keep':BLUEPRINTS[b.blueprint].name):'';
