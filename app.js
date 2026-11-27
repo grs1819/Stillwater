@@ -1,10 +1,10 @@
 import {LODGE_COST,freeformLodges,selectedLodge,lodgeOpeningError,openLodge,reconcileLodges,setLodgeLevel} from './freeform.js';
-import {developmentXP,hospitalityXP,levelGains,unlocked,skillLevel} from './skills.js?v=sauna-1';
+import {developmentXP,hospitalityXP,levelGains,unlocked,skillLevel} from './skills.js?v=cabin-lighting-1';
 import {createSkillsView} from './skills-view.js';
-import {businessSummary,upgradeQuote,upgradeBusiness,upgradeError,businessTier,settleIncome} from './businesses.js?v=sauna-1';
+import {businessSummary,upgradeQuote,upgradeBusiness,upgradeError,businessTier,settleIncome} from './businesses.js?v=cabin-lighting-1';
 import {ECONOMY,transactGold,removalRefund,renovationCost,advanceIncome} from './economy.js';
-import {renovateCabin,emptyWorld,validateWorld,buildingAt,BLUEPRINTS,CABIN,GUEST_WING,withGuestWing,additionQuote,withCabinAddition,SHOP,CAFE,SAUNA,placementError,cabinOccupancy,navigationBlocks,footprint,localCell} from './blueprints.js?v=sauna-1';
-import {createCabinView} from './cabin-view.js?v=sauna-1';
+import {renovateCabin,emptyWorld,validateWorld,buildingAt,BLUEPRINTS,CABIN,GUEST_WING,withGuestWing,additionQuote,withCabinAddition,SHOP,CAFE,SAUNA,placementError,cabinOccupancy,navigationBlocks,footprint,localCell} from './blueprints.js?v=cabin-lighting-1';
+import {createCabinView} from './cabin-view.js?v=cabin-lighting-1';
 import {createAccounts} from './accounts.js';
 import {createCloudSync,supabaseRemote} from './cloud-sync.js';
 import {createVillageStore} from './village-store.js';
@@ -162,7 +162,7 @@ function updateEconomyUI(){
  const eligible=original?.blueprint===CABIN.id;
  $('#wing-controls').hidden=!eligible;
  if(eligible){
-  for(const [kind,id]of [['guestWing','wing-preview'],['frontPorch','porch-preview'],['loft','loft-preview'],['secondStory','story-preview'],['premiumSuite','suite-preview'],['fireplace','fireplace-preview'],['luxury','luxury-preview'],['roofLookout','lookout-preview']]){
+  for(const [kind,id]of [['guestWing','wing-preview'],['frontPorch','porch-preview'],['loft','loft-preview'],['secondStory','story-preview'],['premiumSuite','suite-preview'],['fireplace','fireplace-preview'],['luxury','luxury-preview'],['premiumLighting','lighting-preview']]){
    const quote=additionQuote(original,kind),button=$('#'+id);button.hidden=quote.installed||!!extensionPreview;button.disabled=!!renovationDraft||!!quote.reason;button.title=quote.reason||'';
    button.textContent=`Preview ${quote.name.toLowerCase()} · ${quote.cost?quote.cost+' Gold':'Included'}`;
   }
@@ -170,7 +170,7 @@ function updateEconomyUI(){
   const blocked=quote?(placementError(withCabinAddition(original,extensionPreview),currentVillageData())|| (skillLevel(skillProgress.xp.hospitality)<quote.hospitality?`Requires Hospitality level ${quote.hospitality}.`:null)||fundsError(quote.cost)):null;
   $('#wing-confirm').hidden=!extensionPreview;$('#wing-cancel').hidden=!extensionPreview;$('#wing-confirm').disabled=!!blocked;
   $('#wing-confirm').textContent=quote?`Build · ${quote.cost?quote.cost+' Gold':'Included'}`:'Build';
-  $('#wing-status').textContent=blocked|| (quote?`${quote.name} preview · ${extensionPreview==='secondStory'?'Loft credit included where applicable; +2 beds beyond the loft.':extensionPreview==='premiumSuite'?'Premium earnings per occupied bed.':extensionPreview==='fireplace'?'Stone chimney and warm windows; improves comfort.':extensionPreview==='luxury'?'Luxury finishes; +3 Gold/min per occupied bed.':extensionPreview==='roofLookout'?'Replaces the central loft roof with a glazed observation room; improves appeal.':''} Confirm to keep.`:`${original.gameplay.guestWing?'Guest wing installed · ':''}${original.gameplay.frontPorch?'Full porch installed · ':''}${additionQuote(original,'loft').installed?'Loft converted · ':''}${original.gameplay.secondStory?'Second story installed · ':''}${additionQuote(original,'premiumSuite').installed?'Premium suite included · ':''}${additionQuote(original,'fireplace').installed?'Fireplace included · ':''}${original.gameplay.luxury?'Luxury renovation installed · ':''}${original.gameplay.roofLookout?'Roof lookout installed · ':''}Prior purchases are credited. Suite and lookout require a loft. Demand still applies.`);
+  $('#wing-status').textContent=blocked|| (quote?`${quote.name} preview · ${extensionPreview==='secondStory'?'Loft credit included where applicable; +2 beds beyond the loft.':extensionPreview==='premiumSuite'?'Premium earnings per occupied bed.':extensionPreview==='fireplace'?'Stone chimney and warm windows; improves comfort.':extensionPreview==='luxury'?'Luxury finishes; +3 Gold/min per occupied bed.':extensionPreview==='premiumLighting'?'Warm wall sconces, eave accents and lights on full-width porch posts; improves comfort.':''} Confirm to keep.`:`${original.gameplay.guestWing?'Guest wing installed · ':''}${original.gameplay.frontPorch?'Full porch installed · ':''}${additionQuote(original,'loft').installed?'Loft converted · ':''}${original.gameplay.secondStory?'Second story installed · ':''}${additionQuote(original,'premiumSuite').installed?'Premium suite included · ':''}${additionQuote(original,'fireplace').installed?'Fireplace included · ':''}${original.gameplay.luxury?'Luxury renovation installed · ':''}${original.gameplay.premiumLighting?'Premium lighting installed · ':''}Prior purchases are credited. The premium suite requires a loft. Demand still applies.`);
 
  }
  if(pendingCabin)showCabinGhost(pendingCabin);
@@ -1319,7 +1319,7 @@ function previewAddition(kind){
  const draft=withCabinAddition(b,kind),error=placementError(draft,currentVillageData());
  extensionPreview=kind;renovationDraft=draft;cabinView.setHidden(b.id);cabinGhost.update([draft],(x,z)=>terrainHeight(terrain,x,z));cabinGhost.setValid(!error);cabinGhost.group.visible=true;showCabinFootprint(draft,error?'#d78469':'#91ba8a');renderer.shadowMap.needsUpdate=true;syncCabinPanel();
 }
-$('#wing-preview').onclick=()=>previewAddition('guestWing');$('#porch-preview').onclick=()=>previewAddition('frontPorch');$('#loft-preview').onclick=()=>previewAddition('loft');$('#story-preview').onclick=()=>previewAddition('secondStory');$('#suite-preview').onclick=()=>previewAddition('premiumSuite');$('#fireplace-preview').onclick=()=>previewAddition('fireplace');$('#luxury-preview').onclick=()=>previewAddition('luxury');$('#lookout-preview').onclick=()=>previewAddition('roofLookout');
+$('#wing-preview').onclick=()=>previewAddition('guestWing');$('#porch-preview').onclick=()=>previewAddition('frontPorch');$('#loft-preview').onclick=()=>previewAddition('loft');$('#story-preview').onclick=()=>previewAddition('secondStory');$('#suite-preview').onclick=()=>previewAddition('premiumSuite');$('#fireplace-preview').onclick=()=>previewAddition('fireplace');$('#luxury-preview').onclick=()=>previewAddition('luxury');$('#lighting-preview').onclick=()=>previewAddition('premiumLighting');
 $('#wing-cancel').onclick=()=>cancelRenovation();
 $('#wing-confirm').onclick=()=>{
  if(!extensionPreview)return;const original=cabins.find(b=>b.id===selectedCabin);if(!original)return;
