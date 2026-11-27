@@ -1,7 +1,7 @@
 import {freeformLodges} from './freeform.js';
-import {SHOP,CAFE,SAUNA,GUEST_WING,entrance,footprint} from './blueprints.js?v=sauna-1';
+import {SHOP,CAFE,SAUNA,GUEST_WING,entrance,footprint} from './blueprints.js?v=cabin-lighting-1';
 import {ECONOMY,visitorAppeal,advanceIncome} from './economy.js';
-import {skillLevel,hospitalityXP} from './skills.js?v=sauna-1';
+import {skillLevel,hospitalityXP} from './skills.js?v=cabin-lighting-1';
 // Abstract occupancy is deterministic and derived from the saved village for both active and offline payouts.
 export const BUSINESS=Object.freeze({baseDemand:2,appealPerGuest:10,shopRadius:6,cabinCapacity:[2,4,6,6],shopCapacity:[4,8,10,12],cabinUpgrade:150,shopUpgrade:175,goldPerGuest:.75,goldPerCustomer:.75});
 // Each tier is a purchase, not an architectural renovation. Existing tier 1 benefits remain intact.
@@ -63,7 +63,7 @@ export function businessSummary(world){
  const rows=[...world.buildings,...freeformLodges(world.blocks,world.water)].map(b=>{
   const kind=businessKind(b),shop=kind==='shop'||kind==='cafe'||kind==='sauna',level=b.gameplay.businessLevel||0,pos=kind==='lodge'?b.position:center(b),door=kind==='lodge'?b.door:entrance(b);
   const path=!!door&&world.blocks[`${door[0]},0,${door[1]}`]?.type==='path',nature=scenery.some(p=>distance(p,pos)<=9),capacity=businessTier(b).capacity,rate=businessTier(b).rate;
-  return {id:b.id,kind,shop,pos,capacity,rate,level,path,nature,quality:Number(path)+Number(nature)+(Math.max(level,b.gameplay.frontPorch?1:0)+(kind==='cabin'&&(b.gameplay.fireplace||b.gameplay.premiumSuite||level>=3)?1:0)+(b.gameplay.roofLookout?1:0)),available:kind==='lodge'&&!b.operating?0:Math.min(capacity,1+Number(path)+Number(nature)+(Math.max(level,b.gameplay.frontPorch?1:0)+(kind==='cabin'&&(b.gameplay.fireplace||b.gameplay.premiumSuite||level>=3)?1:0)+(b.gameplay.roofLookout?1:0))+extraBeds(b)),guests:0,customers:0,lodgings:0,income:0,hint:''};
+  return {id:b.id,kind,shop,pos,capacity,rate,level,path,nature,quality:Number(path)+Number(nature)+(Math.max(level,b.gameplay.frontPorch?1:0)+(kind==='cabin'&&(b.gameplay.fireplace||b.gameplay.premiumSuite||level>=3)?1:0)+(b.gameplay.premiumLighting?1:0)),available:kind==='lodge'&&!b.operating?0:Math.min(capacity,1+Number(path)+Number(nature)+(Math.max(level,b.gameplay.frontPorch?1:0)+(kind==='cabin'&&(b.gameplay.fireplace||b.gameplay.premiumSuite||level>=3)?1:0)+(b.gameplay.premiumLighting?1:0))+extraBeds(b)),guests:0,customers:0,lodgings:0,income:0,hint:''};
  });
  const cabins=rows.filter(r=>!r.shop).sort((a,b)=>b.quality-a.quality||a.id.localeCompare(b.id)),shops=rows.filter(r=>r.shop);
  let remaining=demand;
